@@ -15,9 +15,26 @@ Built for a SuSoft POS terminal (Android 7.1.2, Chrome 119, RK3399), so it is a 
 
 Scan **PAUSE** in the status bar to stop at any time (for example, when a customer shows up). Esc also pauses. Scores are saved on the device (top 10).
 
-## Putting it on the machine
+## Play it
 
-The game is one file. Host `index.html` anywhere the POS browser can reach, for example GitHub Pages (Settings → Pages → deploy from this branch), then open that URL in Chrome on the terminal.
+**https://kkinnit-o8.github.io/Barcode-game/**
+
+<img src="qr-code.png" alt="QR code linking to https://kkinnit-o8.github.io/Barcode-game/" width="240">
+
+`qr-code.svg` is the same QR code as a vector file, for printing at any size.
+
+## Publishing with GitHub Pages
+
+The repo is already set up for Pages: `index.html` is at the root, and `.nojekyll` tells GitHub to serve the files as-is. To switch it on once:
+
+1. Open the repo on GitHub and click **Settings**.
+2. In the left sidebar, click **Pages**.
+3. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+4. Under **Branch**, choose **`main`** and **`/ (root)`**, then click **Save**.
+5. Wait 1–2 minutes. The **Actions** tab shows a "pages build and deployment" run, and the Pages screen then says *"Your site is live at …"*.
+6. Open the link (or scan the QR code above) in Chrome on the POS terminal.
+
+Every later push to `main` republishes the site automatically.
 
 ## Scanner requirements
 
