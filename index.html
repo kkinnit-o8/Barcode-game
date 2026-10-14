@@ -38,7 +38,7 @@ canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
 const Q = new URLSearchParams(location.search);
 const DEBUG = Q.has('debug');
 let DIGITS = parseInt(Q.get('digits'), 10);
-if (!(DIGITS >= 2 && DIGITS <= 12)) DIGITS = 4;
+if (!(DIGITS >= 4 && DIGITS <= 12)) DIGITS = 4;
 if (DIGITS % 2) DIGITS += 1;
 const MOD_CSS = Math.max(1, parseFloat(Q.get('module')) || 2);  // smallest bar width, CSS px
 const RES = Math.min(360, Math.max(120, parseInt(Q.get('res'), 10) || 216));
@@ -66,7 +66,7 @@ const prng = mulberry32(99);
 // ---------- 5x7 bitmap font ----------
 const FONT = {};
 (function () {
-  const s = "AehhvhhhBuhhuhhuCehgggheDuhhhhhuEvgguggvFvggugggGehgnhhfHhhhvhhhIe44444eJ72222icKhikokihLggggggvMhrllhhhNhhpljhhOehhhhhePuhhugggQehhhlidRuhhukihSfgge11uTv444444UhhhhhheVhhhhha4WhhhlllaXhha4ahhYhhha444Zv1248gv0ehjlphe14c4444e2eh1248v3v2421he426aiv225vgu11he668guhhe7v1248888ehhehhe9ehhf12c 0000000.00000cc,0000c48!4444404?eh12404:0cc0cc0-000v000+044v440%op248j3/01248g0'4480000(2488842)8422248#aavavaa>8421248<248g842=00v0v00*0level0";
+  const s = "AehhvhhhBuhhuhhuCehgggheDuhhhhhuEvgguggvFvggugggGehgnhhfHhhhvhhhIe44444eJ72222icKhikokihLggggggvMhrllhhhNhhpljhhOehhhhhePuhhugggQehhhlidRuhhukihSfgge11uTv444444UhhhhhheVhhhhha4WhhhlllaXhha4ahhYhhha444Zv1248gv0ehjlphe14c4444e2eh1248v3v2421he426aiv225vgu11he668guhhe7v1248888ehhehhe9ehhf12c 0000000.00000cc,0000c48!4444404?eh12404:0cc0cc0-000v000+044v440%op248j3/01248g0'4480000(2488842)8422248#aavavaa>8421248<248g842=00v0v00*0level0_000000v";
   const d = '0123456789abcdefghijklmnopqrstuv';
   for (let i = 0; i + 8 <= s.length; i += 8) { const g = []; for (let r = 1; r < 8; r++) g.push(d.indexOf(s[i + r])); FONT[s[i]] = g; }
 })();
@@ -142,19 +142,23 @@ function makeCode(text) {
 }
 const MODS = makeCode('0'.repeat(DIGITS)).modules + 2 * QZ;  // total width in modules
 const usedCodes = new Set(), recentCodes = new Map();
-const menuText = i => '9' + String(i).padStart(DIGITS - 1, '0');
-const RESERVED = new Set();
-for (let i = 1; i <= 9; i++) RESERVED.add(menuText(i));
+// Menu codes all start with 9; codes for demons and pickups start with 1-8, so they never collide.
+const mcCache = {};
+const mc = i => mcCache[i] || (mcCache[i] = makeCode('9' + String(i).padStart(DIGITS - 1, '0')));
 function newCode() {
   let s;
-  do { s = String(randi(1, 8)); while (s.length < DIGITS) s += randi(0, 9); } while (usedCodes.has(s) || RESERVED.has(s) || recentCodes.has(s));
+  do { s = String(randi(1, 8)); while (s.length < DIGITS) s += randi(0, 9); } while (usedCodes.has(s) || recentCodes.has(s));
   usedCodes.add(s);
   return makeCode(s);
 }
 function freeCode(c) { if (c) { usedCodes.delete(c.text); recentCodes.set(c.text, G.t); } }
 const MC = {
-  easy: makeCode(menuText(1)), normal: makeCode(menuText(2)), hard: makeCode(menuText(3)), sound: makeCode(menuText(4)),
-  pause: makeCode(menuText(5)), resume: makeCode(menuText(6)), quit: makeCode(menuText(7)), cont: makeCode(menuText(8)), again: makeCode(menuText(9)),
+  easy: mc(1), normal: mc(2), hard: mc(3), sound: mc(4), pause: mc(5), resume: mc(6), quit: mc(7), cont: mc(8), again: mc(9),
+  board: mc(10), tab: mc(11), back: mc(12), newp: mc(20), del: mc(56), done: mc(57),
+  player: [0, 1, 2, 3, 4, 5].map(i => mc(21 + i)),
+  letter: Array.from({ length: 26 }, (_, i) => mc(30 + i)),
+  loot: [0, 1, 2].map(i => mc(60 + i)),
+  bag: [0, 1].map(i => mc(70 + i)),
 };
 
 // ---------- canvases ----------
@@ -547,9 +551,9 @@ function drawBlood(k) {
   for (let i = 0; i < n; i++) { const a = prng() * TAU, r = (k + 1) * 1.6 * Math.sqrt(prng()); p.rect(6 + Math.cos(a) * r, 6 + Math.sin(a) * r, prng() < .4 ? 2 : 1, prng() < .4 ? 2 : 1, prng() < .5 ? C('#a01010') : C('#d02020')); }
   return p;
 }
-function drawGun(fire) {  // the player's "scanner blaster", seen from behind
+function drawGun(fire, gold) {  // the player's "scanner blaster", seen from behind
   const p = new Pix(72, 64);
-  const BD = C('#383b42'), BDL = C('#575c66'), BDD = C('#24262b'), YL = C('#e2aa12'), YLD = C('#a07806'), SK = C('#cf9466'), SKD = C('#9e6a44'), SL = C('#3e5a2a'), SLD = C('#2a3f1c');
+  const BD = C(gold ? '#b08a1a' : '#383b42'), BDL = C(gold ? '#ecc848' : '#575c66'), BDD = C(gold ? '#6e520c' : '#24262b'), YL = C(gold ? '#f4dc70' : '#e2aa12'), YLD = C(gold ? '#b8941e' : '#a07806'), SK = C('#cf9466'), SKD = C('#9e6a44'), SL = C('#3e5a2a'), SLD = C('#2a3f1c');
   const o = fire ? 5 : 0;
   p.rect(29, 28 + o, 15, 36, YL); p.rect(29, 28 + o, 3, 36, YLD);
   for (let y = 33; y < 64; y += 5) p.rect(32, y + o, 12, 1, YLD);
@@ -564,6 +568,43 @@ function drawGun(fire) {  // the player's "scanner blaster", seen from behind
   p.light(); p.outline(.45);
   return p.canvas();
 }
+function drawCrate() {
+  const p = new Pix(22, 20);
+  const WD = C('#8a5a2a'), WDD = C('#5a3a1a'), WDL = C('#b07a3a'), GO = C('#e8b830'), GOD = C('#a07818');
+  p.rect(1, 4, 20, 15, WD);
+  for (let y = 7; y < 18; y += 4) p.rect(3, y, 16, 1, WDD);
+  p.rect(1, 4, 20, 2, WDL);
+  p.rect(1, 4, 2, 15, GO); p.rect(19, 4, 2, 15, GO); p.rect(1, 17, 20, 2, GOD); p.rect(1, 4, 20, 1, GO);
+  p.rect(9, 9, 4, 5, GO); p.rect(10, 11, 2, 2, C('#3a2a10'));
+  p.set(4, 1, GL('#fff8c0')); p.set(16, 0, GL('#fff8c0')); p.set(11, 2, GL('#ffe060')); p.set(7, 0, GL('#ffe060'));
+  return p;
+}
+function glyph(p, ch, x, y, c) { const g = FONT[ch]; if (g) for (let r = 0; r < 7; r++) for (let b = 0; b < 5; b++) if (g[r] & (16 >> b)) p.set(x + b, y + r, c); }
+function heart(p, c) { p.ell(5.5, 6, 3.6, 3.6, c); p.ell(10.5, 6, 3.6, 3.6, c); p.poly([[1.6, 7], [14.4, 7], [8, 14.5]], c); }
+const ICON_ART = {
+  medpack: p => { p.rect(2, 4, 12, 10, C('#eeeeea')); p.rect(6, 2, 4, 2, C('#909090')); p.rect(7, 6, 2, 6, C('#d41414')); p.rect(5, 8, 6, 2, C('#d41414')); },
+  plate: p => { p.poly([[2, 2], [14, 2], [14, 9], [8, 15], [2, 9]], C('#7d8ea8')); p.poly([[4, 4], [8, 4], [8, 12], [4, 8.5]], C('#a8bad4')); },
+  coupon: p => { p.rect(1, 4, 14, 9, C('#f2c230')); p.set(1, 8, 0); p.set(14, 8, 0); glyph(p, '%', 5, 5, C('#7a4a00')); },
+  energy: p => { p.rect(4, 2, 8, 13, C('#30a040')); p.rect(4, 2, 8, 2, C('#c0c0c0')); p.poly([[9.5, 5], [5.5, 10], [8, 10], [7, 14], [11, 8.5], [8.5, 8.5]], GL('#ffe040')); },
+  frost: p => { p.ell(8, 8, 7, 7, C('#3a8ad8')); const c = GL('#e8f6ff'); p.line(8, 3, 8, 13, c); p.line(3, 8, 13, 8, c); p.line(4.5, 4.5, 11.5, 11.5, c); p.line(11.5, 4.5, 4.5, 11.5, c); },
+  regen: p => { heart(p, C('#30b850')); p.rect(7, 4, 2, 7, GL('#ffffff')); p.rect(5, 6, 6, 2, GL('#ffffff')); },
+  loyalty: p => { p.rect(1, 3, 14, 10, C('#e8b830')); p.rect(1, 5, 14, 2, C('#6a4a08')); p.rect(3, 9, 3, 2, C('#d0d0d0')); p.rect(8, 10, 5, 1, C('#8a6a18')); },
+  thick: p => { p.ell(8, 10, 7, 7, C('#6d7a5a')); p.rect(0, 10, 16, 6, 0); p.rect(1, 10, 14, 2, C('#4a5640')); p.rect(5, 5, 3, 2, C('#9aa888')); },
+  field: p => { p.ell(8, 8, 7.5, 7.5, GL('#5ab4ff')); p.ell(8, 8, 5.8, 5.8, C('#1c3c70')); p.rect(5, 5, 2, 2, GL('#d8f0ff')); },
+  pipebomb: p => { p.rect(3, 6, 10, 6, C('#8a8a90')); p.rect(2, 5, 2, 8, C('#c02020')); p.rect(12, 5, 2, 8, C('#c02020')); p.line(13, 5, 15, 1, C('#3a2a1a')); p.set(15, 0, GL('#ffe040')); p.set(14, 0, GL('#ff8020')); },
+  vampire: p => { p.poly([[8, 1], [3, 9], [13, 9]], C('#c01020')); p.ell(8, 10, 5, 5, C('#c01020')); p.rect(5, 8, 2, 3, C('#ff7080')); },
+  doubletap: p => { p.rect(0, 3, 16, 10, C('#3a1010')); glyph(p, 'X', 2, 4, GL('#ff4040')); glyph(p, '2', 9, 4, GL('#ff4040')); },
+  nuke: p => {
+    p.ell(8, 8, 7.5, 7.5, C('#f0d020'));
+    for (const a of [-90, 30, 150]) { const r = a * Math.PI / 180; p.poly([[8, 8], [8 + Math.cos(r - .55) * 6.5, 8 + Math.sin(r - .55) * 6.5], [8 + Math.cos(r + .55) * 6.5, 8 + Math.sin(r + .55) * 6.5]], C('#181818')); }
+    p.ell(8, 8, 2.2, 2.2, C('#f0d020')); p.ell(8, 8, 1.2, 1.2, C('#181818'));
+  },
+  lucky: p => { const g = C('#2fa84a'); p.ell(5, 5, 3.4, 3.4, g); p.ell(11, 5, 3.4, 3.4, g); p.ell(5, 10, 3.4, 3.4, g); p.ell(11, 10, 3.4, 3.4, g); p.line(8, 8, 12, 15, C('#1e6a2e')); p.set(4, 4, C('#7ee08e')); },
+  megakit: p => { p.rect(1, 2, 14, 13, C('#e8b830')); p.rect(2, 3, 12, 11, C('#f4f4f0')); p.rect(6, 4, 4, 9, C('#d41414')); p.rect(3, 7, 10, 3, C('#d41414')); },
+  extralife: p => { heart(p, C('#e02030')); p.rect(4, 4, 2, 2, C('#ff9aa8')); glyph(p, '1', 6, 4, GL('#ffffff')); },
+  golden: p => { p.ell(8, 6, 7, 4, C('#e8b830')); p.rect(6, 8, 4, 8, C('#c89a20')); p.rect(3, 2, 10, 1, GL('#ff4040')); p.rect(5, 5, 6, 2, C('#8a6a10')); },
+};
+const ICONC = {};
 const POSES = ['w0', 'w1', 'aim', 'fire', 'pain', 'd0', 'd1', 'd2'];
 const SPR = {};
 let GUN = null;
@@ -575,7 +616,9 @@ function buildSprites() {
   SPR.lamp = drawLamp().outline(); SPR.torch = [drawTorch(0).outline(), drawTorch(1).outline()];
   SPR.ball = [drawBall(0), drawBall(1)]; SPR.gball = [drawBall(0, 1), drawBall(1, 1)];
   SPR.boom = [0, 1, 2, 3].map(drawBoom); SPR.fog = [0, 1, 2, 3].map(drawFog); SPR.blood = [0, 1, 2].map(drawBlood);
-  GUN = [drawGun(false), drawGun(true)];
+  GUN = [drawGun(false), drawGun(true), drawGun(false, true), drawGun(true, true)];
+  SPR.crate = drawCrate().fin();
+  for (const id in ICON_ART) { const p = new Pix(16, 16); ICON_ART[id](p); ICONC[id] = p.outline(.55).canvas(); }
 }
 
 // ---------- game data ----------
@@ -589,7 +632,37 @@ const ITEM = {
   medkit: { color: '#22c040', hgt: .24, msg: 'PICKED UP A MEDKIT.' },
   armor: { color: '#2a7bff', hgt: .28, msg: 'PICKED UP THE ARMOR.' },
   barrel: { color: '#ff8a00', hgt: .52 },
+  crate: { color: '#ffc820', hgt: .4 },
 };
+// Loot: a crate offers three items. Each item has a fixed rarity; rarer items are rolled less often.
+const RAR = [
+  { name: 'COMMON', color: '#cfcfcf', w: 52 },
+  { name: 'UNCOMMON', color: '#44d455', w: 28 },
+  { name: 'RARE', color: '#4a90ff', w: 13 },
+  { name: 'EPIC', color: '#bb66ff', w: 5.5 },
+  { name: 'LEGENDARY', color: '#ffa424', w: 1.5 },
+];
+// kind: 'use' goes in the backpack and is used later by scanning it; 'perk' lasts the whole game; 'now' applies at once.
+const ITEMS = {
+  medpack: { name: 'MEDPACK', r: 0, kind: 'use', desc: 'HEALS 35 HEALTH WHEN YOU USE IT.' },
+  plate: { name: 'ARMOR PLATE', r: 0, kind: 'now', desc: '+35 ARMOR RIGHT NOW.' },
+  coupon: { name: 'COUPON', r: 0, kind: 'now', desc: '+1500 POINTS RIGHT NOW.' },
+  energy: { name: 'ENERGY DRINK', r: 0, kind: 'use', desc: 'DEMONS MOVE AND ATTACK AT HALF SPEED FOR 8 SEC.' },
+  frost: { name: 'FROST GRENADE', r: 1, kind: 'use', desc: 'FREEZES ALL DEMONS AND FIREBALLS FOR 6 SEC.' },
+  regen: { name: 'REGEN PATCH', r: 1, kind: 'perk', max: 3, desc: 'HEAL 1 HEALTH EVERY 3 SEC WHILE FIGHTING.' },
+  loyalty: { name: 'LOYALTY CARD', r: 1, kind: 'perk', max: 3, desc: '+25% POINTS FOR EVERYTHING.' },
+  thick: { name: 'THICK SKIN', r: 1, kind: 'perk', max: 3, desc: 'TAKE 20% LESS DAMAGE.' },
+  field: { name: 'FORCE FIELD', r: 2, kind: 'use', desc: 'NOTHING CAN HURT YOU FOR 7 SEC.' },
+  pipebomb: { name: 'PIPE BOMB', r: 2, kind: 'use', desc: '3 DAMAGE TO EVERY DEMON IN THE ROOM.' },
+  vampire: { name: 'VAMPIRE LASER', r: 2, kind: 'perk', max: 3, desc: '+2 HEALTH FOR EVERY KILL.' },
+  doubletap: { name: 'DOUBLE TAP', r: 2, kind: 'perk', max: 2, desc: 'EVERY SCAN DOES +1 DAMAGE.' },
+  nuke: { name: 'NUKE', r: 3, kind: 'use', desc: 'KILLS EVERY DEMON IN THE ROOM. BOSSES TAKE 6.' },
+  lucky: { name: 'LUCKY CHARM', r: 3, kind: 'perk', max: 2, desc: 'MORE CRATES AND RARER LOOT.' },
+  megakit: { name: 'MEGA KIT', r: 3, kind: 'now', desc: 'FULL HEALTH AND FULL ARMOR RIGHT NOW.' },
+  extralife: { name: 'EXTRA LIFE', r: 4, kind: 'perk', max: 2, desc: 'COME BACK TO LIFE ONCE WITH FULL HEALTH.' },
+  golden: { name: 'GOLDEN SCANNER', r: 4, kind: 'perk', max: 1, desc: 'TRIPLE DAMAGE AND +50% POINTS.' },
+};
+const KIND_TXT = { use: 'ITEM - USE LATER', perk: 'PERK - WHOLE GAME', now: 'INSTANT' };
 const TIPS = [
   'TIP: SCAN A FIREBALL TO DESTROY IT.',
   'TIP: SCAN A BARREL TO BLOW UP NEARBY DEMONS.',
@@ -598,11 +671,14 @@ const TIPS = [
   'TIP: FAST KILLS BUILD A COMBO MULTIPLIER.',
   'TIP: BIG DEMONS NEED SEVERAL HITS. THEIR CODE CHANGES AFTER EACH ONE.',
   'TIP: SCAN PAUSE IN THE STATUS BAR IF A CUSTOMER SHOWS UP.',
+  'TIP: GOLD CRATES HOLD LOOT. SCAN ONE AND PICK 1 OF 3 ITEMS.',
+  'TIP: ITEMS IN THE BOTTOM CORNERS ARE USED BY SCANNING THEM.',
+  'TIP: HARD MODE GIVES 1.5X POINTS. EASY GIVES 0.6X.',
 ];
 const DIFFS = [
-  { name: 'EASY', sub: 'JUST VISITING', dmg: .6, cd: 1.35, wind: 1.25, spd: .85, count: .8, alive: -1 },
-  { name: 'NORMAL', sub: 'BRING IT ON', dmg: 1, cd: 1, wind: 1, spd: 1, count: 1, alive: 0 },
-  { name: 'HARD', sub: 'PURE CARNAGE', dmg: 1.35, cd: .8, wind: .85, spd: 1.15, count: 1.25, alive: 1 },
+  { name: 'EASY', sub: 'JUST VISITING', pts: .6, dmg: .6, cd: 1.35, wind: 1.25, spd: .85, count: .8, alive: -1 },
+  { name: 'NORMAL', sub: 'BRING IT ON', pts: 1, dmg: 1, cd: 1, wind: 1, spd: 1, count: 1, alive: 0 },
+  { name: 'HARD', sub: 'PURE CARNAGE', pts: 1.5, dmg: 1.35, cd: .8, wind: .85, spd: 1.15, count: 1.25, alive: 1 },
 ];
 const THEMES = [
   { name: 'THE CHECKOUT', wall: 'shelf', corr: 'tech', frame: 'support', floor: 'tile', ceil: 'ceilpanel', boss: 'hell', decor: 'sign', light: 36 },
@@ -691,8 +767,10 @@ const G = {
   score: 0, health: 100, armor: 0, kills: 0, lvlKills: 0, lvlTotal: 0, lvlT: 0, lvlDmg: 0,
   combo: 0, lastKill: -99, comboShow: 0, path: null, pi: 0, wave: [], spawnT: 0, spawned: 0, maxAlive: 3, bossPending: false, fightT: 0,
   banner: null, msgs: [], red: 0, gold: 0, hurtT: 0, grinT: 0, look: 0, lookT: 0, fireT: 0, muz: 0, shake: 0, flick: 0, flickT: 2,
-  faceA: 0, maxB: .6, targets: [], prevMode: null, lastRank: 0, tally: null,
+  faceA: 0, maxB: .6, targets: [], prevMode: null, tally: null, result: null,
   dmgMul: 1, cdMul: 1, windMul: 1, spdMul: 1, hzOff: 0, muzX: 0, muzY: 0,
+  player: '', pendingDiff: 1, nameBuf: '', nameErr: 0, boardTab: 'all', idleT: 0, rivals: [], passed: {},
+  perks: {}, bag: [null, null], loot: null, roomCrate: false, freezeT: 0, slowT: 0, shieldT: 0, nukeT: 0, regenAcc: 0,
 };
 const cam = { x: 0, y: 0, a: 0, z: .5, bob: 0 };
 let enemies = [], items = [], projs = [], fxs = [], popups = [], beams = [];
@@ -749,8 +827,15 @@ function toTitle() {
   G.banner = null; G.msgs = []; G.red = G.gold = 0; G.comboShow = 0; G.combo = 0;
   setMode('title');
 }
+function pickDiff(d) {
+  G.pendingDiff = d; G.idleT = 0; G.nameBuf = ''; G.nameErr = 0;
+  setMode(recentPlayers().length ? 'who' : 'name');
+}
+function choosePlayer(name) { G.player = name; touchPlayer(name); newGame(G.pendingDiff); }
 function newGame(d) {
   G.diff = d; G.D = DIFFS[d]; G.score = 0; G.health = 100; G.armor = 0; G.kills = 0; G.combo = 0; G.lastKill = -99;
+  G.perks = {}; G.bag = [null, null]; G.loot = null; G.freezeT = G.slowT = G.shieldT = G.nukeT = G.regenAcc = 0;
+  G.rivals = boardRows('all').filter(r => r.n !== G.player && r.s > 0).reverse(); G.passed = {};  // lowest first, so passes are announced in order
   goFull(); keepAwake();
   startLevel(1);
 }
@@ -779,7 +864,7 @@ function startFight() {
   for (const it of items) if (it.room !== room) freeCode(it.code);
   items = items.filter(it => it.room === room);
   setMode('fight');
-  G.fightT = 0; G.spawnT = .35; G.spawned = 0;
+  G.fightT = 0; G.spawnT = .35; G.spawned = 0; G.roomCrate = false;
   G.wave = buildWave(n, G.ri, room.boss);
   G.bossPending = room.boss;
   G.lvlTotal += G.wave.length + (room.boss ? 1 : 0);
@@ -823,17 +908,16 @@ function spawnEnemy(type) {
   G.spawned++;
 }
 function roomClear() {
-  const bonus = 250 + Math.max(0, Math.round((40 - G.fightT) * 15));
-  G.score += bonus;
+  const bonus = addScore(250 + Math.max(0, Math.round((40 - G.fightT) * 15)));
   for (const p of projs) { fxAdd('boom', p.x, p.y, p.zo, .4, .3); freeCode(p.code); }
   projs = [];
   banner(G.room.boss ? 'WARLORD SLAIN!' : 'ROOM CLEAR!', '+' + bonus + ' CLEAR BONUS', 1.8, '#40ff60');
   snd('clear');
   setMode('cleared');
+  if (!G.roomCrate && !G.room.boss && Math.random() < .22 + .1 * (G.perks.lucky || 0)) { const s = findSpot(G.room, 3, 6); if (s) dropCrate(s.x, s.y, false); }
 }
 function levelDone() {
-  const hb = G.health * 10, nd = G.lvlDmg === 0 ? 5000 : 0;
-  G.score += hb + nd;
+  const hb = addScore(G.health * 10), nd = G.lvlDmg === 0 ? addScore(5000) : 0;
   G.tally = { kills: G.lvlKills, total: G.lvlTotal, time: G.lvlT, hb, nd };
   setMode('tally');
   snd('clear');
@@ -846,23 +930,31 @@ function die() {
   projs = [];
 }
 function gameOver() {
-  G.lastRank = saveScore({ s: G.score, l: G.n, k: G.kills, d: G.diff, t: Date.now() });
+  G.result = recordGame();
   setMode('over');
 }
-function quitGame() { if (G.mode !== 'title' && G.mode !== 'over' && G.score > 0) saveScore({ s: G.score, l: G.n, k: G.kills, d: G.diff, t: Date.now() }); toTitle(); }
+function quitGame() {
+  if (['intro', 'walk', 'fight', 'cleared', 'paused', 'loot', 'tally', 'dying'].includes(G.mode) && G.score > 0) recordGame();
+  toTitle();
+}
 function pauseGame() { if (['intro', 'walk', 'fight', 'cleared'].includes(G.mode)) { G.prevMode = G.mode; G.mode = 'paused'; } }
 function resumeGame() { if (G.mode === 'paused') G.mode = G.prevMode || 'walk'; }
 
 // ---------- combat ----------
 function hurt(dmg, src) {
   if (G.mode !== 'fight' && G.mode !== 'cleared') return;
-  dmg = Math.max(1, Math.round(dmg * G.dmgMul));
+  if (G.shieldT > 0) { snd('block'); return; }
+  dmg = Math.max(1, Math.round(dmg * G.dmgMul * Math.max(.4, Math.pow(.8, G.perks.thick || 0))));
   const save = Math.min(G.armor, Math.floor(dmg / 3));
   G.armor -= save; dmg -= save;
   G.health -= dmg; G.lvlDmg += dmg;
   G.red = Math.min(.7, G.red + .2 + dmg / 50); G.hurtT = .6; G.shake = Math.max(G.shake, .25);
   if (src) { const b = angDiff(Math.atan2(src.y - cam.y, src.x - cam.x), cam.a); G.look = b > .15 ? 1 : b < -.15 ? -1 : 0; G.lookT = 1; }
   snd('hurt');
+  if (G.health <= 0 && G.perks.extralife > 0) {
+    G.perks.extralife--; G.health = 100; G.shieldT = 3; G.gold = .9; G.red = 0;
+    banner('EXTRA LIFE!', 'BACK FROM THE DEAD', 2, '#ffa424'); snd('revive');
+  }
   if (G.health <= 0) { G.health = 0; die(); }
 }
 function enemyAttack(e, dist) {
@@ -881,7 +973,7 @@ function enemyAttack(e, dist) {
 function damageEnemy(e, dmg, splash) {
   e.hp -= dmg; e.flash = .1;
   fxAdd('blood', e.x, e.y, e.T.h * .5, .3, .3);
-  if (e.hp <= 0) { killEnemy(e, splash); return; }
+  if (e.hp <= 0) { if (e.state !== 'dead') killEnemy(e, splash); return; }
   freeCode(e.code); e.code = newCode();
   e.state = 'pain'; e.t = 0; e.cd = Math.max(e.cd, .5);
   snd(e.type === 'boss' ? 'bosspain' : 'pain');
@@ -891,9 +983,11 @@ function killEnemy(e, splash) {
   G.kills++; G.lvlKills++;
   G.combo = G.t - G.lastKill < 2.5 ? Math.min(5, G.combo + 1) : 1;
   G.lastKill = G.t;
-  const pts = e.T.score * G.combo + (splash ? 50 : 0);
-  G.score += pts;
+  const pts = addScore(e.T.score * G.combo + (splash ? 50 : 0));
   if (e.scr) popup(e.scr.cx, Math.max(8, e.scr.top), '+' + pts);
+  if (G.perks.vampire) G.health = Math.min(100, G.health + 2 * G.perks.vampire);
+  if (e.type === 'boss') dropCrate(e.x, e.y, true);
+  else if (!G.roomCrate && Math.random() < .03 * (1 + (G.perks.lucky || 0))) dropCrate(e.x, e.y, false);
   if (G.combo > 1) G.comboShow = 1.4;
   G.grinT = .9;
   snd(e.type === 'boss' ? 'bossdie' : 'die');
@@ -904,10 +998,11 @@ function killEnemy(e, splash) {
 }
 function useItem(it) {
   if (it.kind === 'barrel') { explode(it); return; }
+  if (it.kind === 'crate') { removeItem(it); openLoot(it.boss); return; }
   removeItem(it);
   if (it.kind === 'medkit') G.health = Math.min(100, G.health + 25);
   else G.armor = Math.min(100, G.armor + 50);
-  G.gold = .4; G.score += 25;
+  G.gold = .4; addScore(25);
   msg(ITEM[it.kind].msg);
   snd('pickup');
 }
@@ -929,16 +1024,95 @@ function destroyProj(p) {
   if (i < 0) return;
   projs.splice(i, 1); freeCode(p.code);
   fxAdd('boom', p.x, p.y, p.zo, p.size * 1.6, .3);
-  G.score += 50;
-  if (p.scr) popup(p.scr.cx, p.scr.top, '+50');
+  const pts = addScore(50);
+  if (p.scr) popup(p.scr.cx, p.scr.top, '+' + pts);
   snd('pop');
+}
+// Every point goes through here: difficulty, LOYALTY CARD and GOLDEN SCANNER multiply it.
+function addScore(base) {
+  const pts = Math.round(base * G.D.pts * (1 + .25 * (G.perks.loyalty || 0)) * (G.perks.golden ? 1.5 : 1));
+  G.score += pts;
+  return pts;
+}
+const scanDamage = () => (1 + (G.perks.doubletap || 0)) * (G.perks.golden ? 3 : 1);
+const liveEnemies = () => enemies.filter(e => e.state !== 'dead' && e.state !== 'idle');
+
+// ---------- loot ----------
+function dropCrate(x, y, boss) {
+  if (G.mode !== 'fight' && G.mode !== 'cleared') return;
+  if (solidAround(x, y, .3)) { const s = findSpot(G.room, 3, 6); if (!s) return; x = s.x; y = s.y; }
+  items.push({ cls: 'item', kind: 'crate', x, y, room: G.room, code: newCode(), scr: null, fuse: 0, boss });
+  G.roomCrate = true;
+  fxAdd('fog', x, y, 0, .7, .5);
+  snd('crate');
+  msg(boss ? 'THE WARLORD DROPPED A CHEST!' : 'A SUPPLY CRATE APPEARED!');
+}
+function rollLoot(boss) {
+  const f = 1 + .45 * (G.perks.lucky || 0) + .06 * (G.n - 1) + (boss ? .6 : 0);
+  const ws = RAR.map((r, i) => r.w * Math.pow(f, i)), tot = ws.reduce((a, b) => a + b, 0), out = [];
+  for (let k = 0; k < 3; k++) {
+    let x = Math.random() * tot, r = 0;
+    while (r < ws.length - 1 && (x -= ws[r]) > 0) r++;
+    if (boss && k === 2 && out.every(id => ITEMS[id].r < 2)) r = Math.max(r, 2);  // a boss chest always has something good
+    out.push(pickItem(r, out));
+  }
+  return out;
+}
+function pickItem(r, taken) {
+  for (let d = 0; d < 5; d++) for (const rr of [r - d, r + d]) {
+    if (rr < 0 || rr > 4) continue;
+    const pool = Object.keys(ITEMS).filter(id => ITEMS[id].r === rr && taken.indexOf(id) < 0 && !(ITEMS[id].max && (G.perks[id] || 0) >= ITEMS[id].max));
+    if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
+  }
+  return 'coupon';
+}
+function openLoot(boss) {
+  G.loot = { choices: rollLoot(boss), boss };
+  G.prevMode = G.mode; G.mode = 'loot';
+  snd('loot');
+}
+function chooseLoot(i) {
+  const id = G.loot.choices[i];
+  G.loot = null; G.mode = G.prevMode || 'fight';
+  applyItem(id);
+}
+function oldestBag() { return G.bag[0] && G.bag[1] ? (G.bag[0].t <= G.bag[1].t ? 0 : 1) : G.bag[0] ? 1 : 0; }
+function applyItem(id) {
+  const it = ITEMS[id];
+  if (it.kind === 'use') G.bag[oldestBag()] = { id, t: G.t };
+  else if (it.kind === 'perk') G.perks[id] = (G.perks[id] || 0) + 1;
+  else if (id === 'plate') G.armor = Math.min(100, G.armor + 35);
+  else if (id === 'megakit') { G.health = 100; G.armor = 100; }
+  else if (id === 'coupon') addScore(1500);
+  msg('GOT ' + it.name + '!');
+  G.gold = .5;
+  snd(it.r >= 3 ? 'revive' : 'pickup');
+}
+function useBag(i) {
+  const b = G.bag[i];
+  if (!b) return;
+  G.bag[i] = null;
+  switch (b.id) {
+    case 'medpack': G.health = Math.min(100, G.health + 35); G.gold = .4; snd('pickup'); break;
+    case 'energy': G.slowT = 8; snd('slow'); break;
+    case 'frost': G.freezeT = 6; snd('freeze'); break;
+    case 'field': G.shieldT = 7; snd('shield'); break;
+    case 'pipebomb':
+      for (const e of liveEnemies()) { fxAdd('boom', e.x, e.y, .2, .8, .45); damageEnemy(e, 3, true); }
+      snd('boom'); G.shake = .5; break;
+    case 'nuke':
+      for (const e of liveEnemies()) damageEnemy(e, e.type === 'boss' ? 6 : e.hp, true);
+      for (const p of projs) freeCode(p.code);
+      projs = []; G.nukeT = .8; G.shake = .8; snd('nuke'); break;
+  }
+  msg(ITEMS[b.id].name + '!');
 }
 
 // ---------- update ----------
 function update(dt) {
   G.t += dt;
   for (const [k, t] of recentCodes) if (G.t - t > 4) recentCodes.delete(k);
-  if (G.mode === 'paused') return;
+  if (G.mode === 'paused' || G.mode === 'loot') return;
   G.modeT += dt;
   G.red = Math.max(0, G.red - dt * .9); G.gold = Math.max(0, G.gold - dt * 1.2);
   G.hurtT -= dt; G.grinT -= dt; G.fireT -= dt; G.muz -= dt; G.shake = Math.max(0, G.shake - dt); G.comboShow -= dt;
@@ -952,25 +1126,42 @@ function update(dt) {
 
   switch (G.mode) {
     case 'title': cam.a += dt * .12; break;
+    case 'who': case 'name': case 'board':
+      cam.a += dt * .12;
+      if ((G.idleT += dt) > 75) toTitle();
+      break;
     case 'intro': if (G.modeT > G.introDur) startWalk(); break;
     case 'walk': updWalk(dt); G.lvlT += dt; break;
     case 'fight': updFight(dt); G.lvlT += dt; break;
-    case 'cleared': if (G.modeT > 1.8) { if (G.room.boss) levelDone(); else startWalk(); } break;
+    case 'cleared': {  // wait up to 8 s for the player to open a crate before moving on
+      const crate = items.some(it => it.kind === 'crate');
+      if (G.modeT > 1.8 && (!crate || G.modeT > 8)) { if (G.room.boss) levelDone(); else startWalk(); }
+      break;
+    }
     case 'dying': cam.z = Math.max(.1, .5 - G.modeT * .45); G.red = Math.max(G.red, .5); if (G.modeT > 2.4) gameOver(); break;
     case 'tally': if (G.modeT > 15) nextLevel(); break;
     case 'over': if (G.modeT > 90) toTitle(); break;
   }
   const live = G.mode === 'fight' || G.mode === 'cleared';
-  for (const e of enemies) {
-    e.t += dt; e.flash = Math.max(0, e.flash - dt);
-    if (e.state === 'idle') { e.anim += dt * .7; continue; }
-    if (e.state === 'dead' || !live) continue;
-    aiStep(e, dt);
+  G.freezeT -= dt; G.slowT -= dt; G.shieldT -= dt; G.nukeT -= dt;
+  const edt = G.freezeT > 0 ? 0 : G.slowT > 0 ? dt * .5 : dt;  // FROST GRENADE / ENERGY DRINK
+  if (G.mode === 'fight' && G.perks.regen) {
+    G.regenAcc += dt * G.perks.regen;
+    while (G.regenAcc >= 3) { G.regenAcc -= 3; G.health = Math.min(100, G.health + 1); }
   }
-  if (live) {
+  if (G.mode === 'walk' || live) for (const r of G.rivals) {
+    if (!G.passed[r.n] && G.score > r.s) { G.passed[r.n] = 1; msg('YOU PASSED ' + r.n + '!'); snd('pass'); }
+  }
+  for (const e of enemies) {
+    e.flash = Math.max(0, e.flash - dt);
+    if (e.state === 'idle') { e.t += dt; e.anim += dt * .7; continue; }
+    if (e.state === 'dead' || !live) { e.t += dt; continue; }
+    if (edt > 0) { e.t += edt; aiStep(e, edt); }
+  }
+  if (live && edt > 0) {
     for (let i = projs.length - 1; i >= 0; i--) {
       const p = projs[i];
-      p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      p.t += edt; p.x += p.vx * edt; p.y += p.vy * edt;
       if (Math.hypot(cam.x - p.x, cam.y - p.y) < .45) { projs.splice(i, 1); freeCode(p.code); fxAdd('boom', p.x, p.y, p.zo, .5, .3); hurt(p.dmg, p); continue; }
       if (solidAt(p.x, p.y) || p.t > 8) { projs.splice(i, 1); freeCode(p.code); fxAdd('boom', p.x, p.y, p.zo, .5, .3); }
     }
@@ -1212,8 +1403,8 @@ function button(code, lx, ly, mod, label, act, sub, color) {
   const d = tagDims(mod), hL = d.H / ky;
   const r = drawTag(code, lx * kx, ly * ky, mod, color || '#c81818', null);
   if (label) { const sc = fitSc(label, 2, W / 3); txt(vctx, label, lx, ly - hL / 2 - 3 - 7 * sc, sc, '#ffffff', 'center'); }
-  if (sub) txt(vctx, sub, lx, ly + hL / 2 + 3, 1, '#b8b0a0', 'center');
-  G.targets.push({ code, kind: 'menu', act, rect: r });
+  if (sub) [].concat(sub).forEach((l, i) => txt(vctx, l, lx, ly + hL / 2 + 3 + i * 9, 1, '#b8b0a0', 'center'));
+  G.targets.push({ code, kind: 'menu', act, rect: r, label });
   return hL;
 }
 
@@ -1288,11 +1479,11 @@ function drawStatus() {
   txt(vctx, 'KILLS ' + G.kills, ix, VH + 23, 1, '#d8d0c0');
   if (['intro', 'walk', 'fight', 'cleared'].includes(G.mode)) {
     const r = drawTag(MC.pause, (L.pause[0] + L.pause[1] / 2) * kx, (VH + 20) * ky, minMod, '#707070', null);
-    G.targets.push({ code: MC.pause, kind: 'menu', act: pauseGame, rect: r });
+    G.targets.push({ code: MC.pause, kind: 'menu', act: pauseGame, rect: r, label: 'PAUSE' });
   }
 }
 function drawGunAndBeams() {
-  const fire = G.fireT > .05, c = GUN[fire ? 1 : 0];
+  const fire = G.fireT > .05, c = GUN[(G.perks.golden ? 2 : 0) + (fire ? 1 : 0)];
   let bx = 0, by = 0;
   if (G.mode === 'walk') { bx = Math.sin(cam.bob * 2.2) * 7; by = Math.abs(Math.cos(cam.bob * 2.2)) * 5; } else by = Math.sin(G.t * 2) * 1.2 + 1;
   if (G.mode === 'dying') by += G.modeT * 50;
@@ -1324,42 +1515,164 @@ function drawBanner() {
   }
   vctx.globalAlpha = 1;
 }
-function scoreLines(x, y, n, hi) {
-  const sc = loadScores();
-  txt(vctx, 'TOP SCORES', x, y, 1, '#ffb020', 'center'); y += 11;
-  if (!sc.length) { txt(vctx, 'NO SCORES YET - BE THE FIRST!', x, y, 1, '#a09888', 'center'); return; }
-  for (let i = 0; i < Math.min(n, sc.length); i++) {
-    const e = sc[i], line = (i + 1 + '.').padEnd(4) + String(e.s).padStart(7) + '  L' + String(e.l).padEnd(3) + (DIFFS[e.d] ? DIFFS[e.d].name : '').padEnd(6);
-    txt(vctx, line, x, y, 1, i === hi - 1 ? '#ffffff' : '#c8c0b0', 'center'); y += 9;
-  }
+const tagLow = mod => { const d = tagDims(mod); return { w: d.W / kx, h: d.H / ky }; };
+const midMod = w => Math.min(menuMod(w), Math.max(minMod, Math.round(MOD_CSS * 1.5 * dpr)));
+const BOARD_HEAD = ' #  ' + 'NAME'.padEnd(10) + 'BEST'.padStart(8) + '  ' + 'LVL'.padEnd(4) + 'DIFF'.padEnd(7) + 'GMS';
+const boardLine = (i, r) => String(i).padStart(2) + '. ' + r.n.padEnd(10) + String(r.s).padStart(8) + '  L' + String(r.l).padEnd(3) + (DIFFS[r.d] ? DIFFS[r.d].name : '').padEnd(7) + String(r.games).padStart(3);
+function miniBoard(y, maxY, hi) {
+  const rows = boardRows('all'), n = clamp(Math.floor((maxY - y - 10) / 9), 0, 5);
+  if (!n) return;
+  txt(vctx, 'TOP PLAYERS', W / 2, y, 1, '#ffb020', 'center'); y += 10;
+  if (!rows.length) { txt(vctx, 'NO SCORES YET - BE THE FIRST!', W / 2, y, 1, '#a09888', 'center'); return; }
+  rows.slice(0, n).forEach((r, i) => { txt(vctx, String(i + 1).padStart(2) + '. ' + r.n.padEnd(10) + String(r.s).padStart(8), W / 2, y, 1, r.n === hi ? '#ffffff' : i === 0 ? '#ffd040' : '#c8c0b0', 'center'); y += 9; });
+}
+function smallTag(code, lx, ly, color, act, label) {  // a minimum-size barcode button centred at low-res (lx, ly)
+  const r = drawTag(code, lx * kx, ly * ky, minMod, color, null);
+  G.targets.push({ code, kind: 'menu', act, rect: r, label });
 }
 function drawTitle() {
   dim(.5);
   const ts = clamp(Math.floor(W * .62 / 48), 3, 6);
-  txt(vctx, 'HELLSCAN', W / 2, 8, ts, 'grad:#fff07a,#ff9a10,#d01010', 'center', '#2a0000');
-  let y = 8 + ts * 7 + 6;
-  for (const line of wrap('DEMONS HAVE INVADED THE STORE. EVERY ONE OF THEM CARRIES A BARCODE. AIM THE SCANNER AND PULL THE TRIGGER TO SHOOT.', W - 16)) { txt(vctx, line, W / 2, y, 1, '#e8e0d0', 'center'); y += 9; }
-  y += 4;
+  txt(vctx, 'HELLSCAN', W / 2, 6, ts, 'grad:#fff07a,#ff9a10,#d01010', 'center', '#2a0000');
+  let y = 6 + ts * 7 + 5;
+  for (const line of wrap('DEMONS INVADED THE STORE. SCAN THEIR BARCODES TO SHOOT THEM.', W - 16)) { txt(vctx, line, W / 2, y, 1, '#e8e0d0', 'center'); y += 9; }
+  y += 3;
   txt(vctx, 'SCAN A DIFFICULTY TO START', W / 2, y, 1, '#ffb020', 'center');
-  y += 12;
-  const mod = menuMod(W * .26), d = tagDims(mod), hL = d.H / ky, cy = y + 16 + hL / 2;
-  DIFFS.forEach((D, i) => button(MC[['easy', 'normal', 'hard'][i]], W * (.2 + .3 * i), cy, mod, D.name, () => newGame(i), D.sub));
-  scoreLines(W / 2, cy + hL / 2 + 16, 5, 0);
-  const sm = minMod, sd = tagDims(sm);
-  const sx = W - (sd.W / kx) / 2 - 6, sy = H - (sd.H / ky) / 2 - 4;
-  txt(vctx, S.on ? 'SOUND: ON' : 'SOUND: OFF', W - 4, sy - (sd.H / ky) / 2 - 10, 1, '#c8c0b0', 'right');
-  const r = drawTag(MC.sound, sx * kx, sy * ky, sm, '#606060', null);
-  G.targets.push({ code: MC.sound, kind: 'menu', act: toggleSound, rect: r });
-  const tip = TIPS[Math.floor(G.t / 5) % TIPS.length];
-  wrap(tip, W - (sd.W / kx) - 24).forEach((l, i, a) => txt(vctx, l, 4, H - 10 - (a.length - 1 - i) * 9, 1, '#a8a090'));
+  y += 10;
+  const mod = midMod(W * .24), hL = tagLow(mod).h, cy = y + 17 + hL / 2;
+  DIFFS.forEach((D, i) => button(MC[['easy', 'normal', 'hard'][i]], W * (.2 + .3 * i), cy, mod, D.name, () => pickDiff(i), [D.sub, 'POINTS X' + D.pts]));
+  y = cy + hL / 2 + 24;
+  const sl = tagLow(minMod), by = H - sl.h / 2 - 3, labelY = by - sl.h / 2 - 9;
+  txt(vctx, 'LEADERBOARD', 4, labelY, 1, '#c8c0b0');
+  smallTag(MC.board, 6 + sl.w / 2, by, '#806020', () => { G.boardTab = 'all'; G.idleT = 0; setMode('board'); }, 'LEADERBOARD');
+  txt(vctx, S.on ? 'SOUND: ON' : 'SOUND: OFF', W - 4, labelY, 1, '#c8c0b0', 'right');
+  smallTag(MC.sound, W - 6 - sl.w / 2, by, '#606060', toggleSound, 'SOUND');
+  const side = Math.max(sl.w, 66) + 12, tip = wrap(TIPS[Math.floor(G.t / 5) % TIPS.length], W - 2 * side);
+  tip.forEach((l, i) => txt(vctx, l, W / 2, by - tip.length * 4.5 + i * 9, 1, '#a8a090', 'center'));
+  miniBoard(y, labelY - 4, '');
+}
+function drawWho() {
+  dim(.62);
+  const t = "WHO'S PLAYING?", D = DIFFS[G.pendingDiff];
+  txt(vctx, t, W / 2, 6, fitSc(t, 3, W - 10), '#ffd040', 'center');
+  txt(vctx, 'SCAN YOUR NAME  -  ' + D.name + ', POINTS X' + D.pts, W / 2, 29, 1, '#e8e0d0', 'center');
+  const mod = midMod(W * .24), hL = tagLow(mod).h, rowH = 17 + hL + 13;
+  recentPlayers().slice(0, 6).forEach((n, i) => {
+    const b = bestOf(n);
+    button(MC.player[i], W * (1 / 6 + (i % 3) / 3), 42 + Math.floor(i / 3) * rowH + 17 + hL / 2, mod, n, () => choosePlayer(n), b ? 'BEST ' + b.s : 'NO SCORE YET');
+  });
+  const sl = tagLow(minMod), by = H - sl.h / 2 - 4;
+  button(MC.newp, W * .3, by, minMod, 'NEW PLAYER', () => { G.nameBuf = ''; G.nameErr = 0; setMode('name'); }, null, '#2a8a2a');
+  button(MC.back, W * .7, by, minMod, 'BACK', toTitle, null, '#606060');
+}
+function drawName() {
+  dim(.66);
+  txt(vctx, 'NEW PLAYER', W / 2, 5, fitSc('NEW PLAYER', 3, W - 110), '#ffd040', 'center');
+  txt(vctx, 'SCAN THE LETTERS OF YOUR NAME, THEN DONE', W / 2, 28, 1, '#e8e0d0', 'center');
+  vctx.fillStyle = 'rgba(0,0,0,.65)'; vctx.fillRect(W / 2 - 70, 38, 140, 20);
+  txt(vctx, G.nameBuf + (((G.t * 2) | 0) & 1 ? '_' : ' '), W / 2, 41, 2, '#ffffff', 'center');
+  if (G.nameErr > G.t) txt(vctx, 'USE AT LEAST 2 LETTERS', W / 2, 60, 1, '#ff6060', 'center');
+  const sl = tagLow(minMod), cw = (W - 8) / 7, rowH = 15 + sl.h + 3;
+  for (let i = 0; i < 28; i++) {
+    const cx = 4 + cw * (i % 7 + .5), ly = 70 + Math.floor(i / 7) * rowH;
+    const L = i < 26 ? String.fromCharCode(65 + i) : i === 26 ? 'DEL' : 'DONE';
+    txt(vctx, L, cx, ly, 2, i < 26 ? '#ffffff' : i === 26 ? '#ffc060' : '#60ff70', 'center');
+    const act = i < 26 ? () => { if (G.nameBuf.length < 10) G.nameBuf += L; else snd('buzz'); }
+      : i === 26 ? () => { G.nameBuf = G.nameBuf.slice(0, -1); }
+      : () => { if (G.nameBuf.length < 2) { G.nameErr = G.t + 2; snd('buzz'); } else choosePlayer(G.nameBuf); };
+    smallTag(i < 26 ? MC.letter[i] : i === 26 ? MC.del : MC.done, cx, ly + 15 + sl.h / 2, i < 26 ? '#c81818' : i === 26 ? '#806020' : '#2a8a2a', act, L);
+  }
+  smallTag(MC.back, 5 + sl.w / 2, 4 + sl.h / 2, '#606060', () => (recentPlayers().length ? setMode('who') : toTitle()), 'BACK');
+  txt(vctx, 'BACK', 5 + sl.w / 2, 6 + sl.h, 1, '#c8c0b0', 'center');
+}
+function drawBoard() {
+  dim(.72);
+  txt(vctx, 'LEADERBOARD', W / 2, 5, fitSc('LEADERBOARD', 3, W - 10), '#ffd040', 'center');
+  const wk = G.boardTab === 'week';
+  txt(vctx, wk ? 'THIS WEEK - SINCE MONDAY' : "ALL TIME - EACH PLAYER'S BEST GAME", W / 2, 28, 1, '#e8e0d0', 'center');
+  const rows = boardRows(G.boardTab);
+  let y = 42;
+  txt(vctx, BOARD_HEAD, W / 2, y, 1, '#ffb020', 'center'); y += 11;
+  if (!rows.length) txt(vctx, 'NO GAMES YET - BE THE FIRST!', W / 2, y, 1, '#a09888', 'center');
+  rows.slice(0, 10).forEach((r, i) => { txt(vctx, boardLine(i + 1, r), W / 2, y, 1, i === 0 ? '#ffd040' : '#d8d0c0', 'center'); y += 10; });
+  const sl = tagLow(minMod), by = H - sl.h / 2 - 4;
+  button(MC.tab, W * .3, by, minMod, wk ? 'ALL TIME' : 'THIS WEEK', () => { G.boardTab = wk ? 'all' : 'week'; }, null, '#806020');
+  button(MC.back, W * .7, by, minMod, 'BACK', toTitle, null, '#606060');
+}
+function drawLoot() {
+  dim(.72);
+  const L = G.loot, title = L.boss ? 'WARLORD CHEST' : 'SUPPLY CRATE';
+  txt(vctx, title, W / 2, 5, fitSc(title, 3, W - 10), '#ffd040', 'center');
+  txt(vctx, 'SCAN ONE ITEM TO TAKE IT', W / 2, 28, 1, '#e8e0d0', 'center');
+  const cw = Math.floor((W - 16) / 3), y0 = 40, ch = VH - y0 - 3, sl = tagLow(minMod), full = G.bag[0] && G.bag[1];
+  L.choices.forEach((id, i) => {
+    const it = ITEMS[id], R = RAR[it.r], x = 4 + i * (cw + 4), cx = x + cw / 2;
+    vctx.fillStyle = '#17130f'; vctx.fillRect(x, y0, cw, ch);
+    vctx.strokeStyle = it.r === 4 ? (((G.t * 5) | 0) & 1 ? '#ffe070' : '#ff8a00') : R.color;
+    vctx.lineWidth = 2; vctx.strokeRect(x + 1, y0 + 1, cw - 2, ch - 2);
+    let y = y0 + 5;
+    txt(vctx, R.name, cx, y, 1, R.color, 'center'); y += 10;
+    vctx.drawImage(ICONC[id], Math.round(cx - 16), y, 32, 32); y += 35;
+    const ns = fitSc(it.name, 2, cw - 6);
+    txt(vctx, it.name, cx, y, ns, '#ffffff', 'center'); y += 7 * ns + 4;
+    txt(vctx, KIND_TXT[it.kind], cx, y, 1, R.color, 'center'); y += 11;
+    for (const l of wrap(it.desc, cw - 8)) { txt(vctx, l, cx, y, 1, '#d8d0c0', 'center'); y += 9; }
+    if (it.kind === 'use' && full) txt(vctx, 'REPLACES ' + ITEMS[G.bag[oldestBag()].id].name, cx, y + 1, 1, '#ff8080', 'center');
+    smallTag(MC.loot[i], cx, y0 + ch - 4 - sl.h / 2, R.color, () => chooseLoot(i), id);
+  });
+}
+function drawBag() {
+  const sl = tagLow(minMod);
+  for (let i = 0; i < 2; i++) {
+    const b = G.bag[i];
+    if (!b) continue;
+    const it = ITEMS[b.id], col = RAR[it.r].color, pw = 16 + 8 + Math.max(it.name.length * 6 - 1, sl.w) + 4, ph = 12 + sl.h + 4;
+    const x = i === 0 ? 3 : W - 3 - pw, y = VH - 3 - ph;
+    vctx.fillStyle = 'rgba(0,0,0,.6)'; vctx.fillRect(x, y, pw, ph);
+    vctx.strokeStyle = col; vctx.lineWidth = 1; vctx.strokeRect(x + .5, y + .5, pw - 1, ph - 1);
+    vctx.drawImage(ICONC[b.id], x + 4, Math.round(y + (ph - 16) / 2));
+    txt(vctx, it.name, x + 24, y + 3, 1, col);
+    const r = drawTag(MC.bag[i], (x + 24 + sl.w / 2) * kx, (y + 12 + sl.h / 2) * ky, minMod, col, null);
+    G.targets.push({ code: MC.bag[i], kind: 'menu', quiet: true, act: () => useBag(i), rect: r, label: 'BAG' + i });
+  }
+}
+function nextRival() { let n = null; for (const r of G.rivals) if (r.s >= G.score && (!n || r.s < n.s)) n = r; return n; }
+function drawPlayHud() {
+  let y = 4;
+  if (G.player) {
+    txt(vctx, G.player, W - 4, y, 1, '#a8a090', 'right'); y += 9;
+    const nx = nextRival();
+    if (nx) txt(vctx, 'NEXT: ' + nx.n + ' ' + nx.s, W - 4, y, 1, '#ffb020', 'right');
+    else if (G.rivals.length) txt(vctx, "YOU'RE #1!", W - 4, y, 1, '#40ff60', 'right');
+    y += 10;
+  }
+  let x = W - 4;
+  for (const k in G.perks) {
+    if (!(G.perks[k] > 0)) continue;
+    x -= 16; vctx.drawImage(ICONC[k], x, y);
+    if (G.perks[k] > 1) txt(vctx, String(G.perks[k]), x + 17, y + 9, 1, '#ffffff', 'right');
+    x -= 3;
+  }
+  const fx = [];
+  if (G.freezeT > 0) fx.push(['FROZEN ' + Math.ceil(G.freezeT), '#8ad8ff']);
+  if (G.slowT > 0) fx.push(['SLOW-MO ' + Math.ceil(G.slowT), '#a0ff80']);
+  if (G.shieldT > 0) fx.push(['FORCE FIELD ' + Math.ceil(G.shieldT), '#5ab4ff']);
+  fx.forEach((f, i) => txt(vctx, f[0], W / 2, 22 + i * 9, 1, f[1], 'center'));
+  drawBag();
 }
 function drawPaused() {
   dim(.6);
-  txt(vctx, 'PAUSED', W / 2, VH * .14, fitSc('PAUSED', 4, W - 10), '#ffffff', 'center');
-  const mod = menuMod(W * .34), hL = tagDims(mod).H / ky, cy = VH * .5 + 8;
+  txt(vctx, 'PAUSED', W / 2, VH * .12, fitSc('PAUSED', 4, W - 10), '#ffffff', 'center');
+  const mod = midMod(W * .3), hL = tagLow(mod).h, cy = VH * .42 + 8;
   button(MC.resume, W * .3, cy, mod, 'RESUME', resumeGame);
   button(MC.quit, W * .7, cy, mod, 'QUIT', quitGame);
-  txt(vctx, 'OR PRESS ESC TO RESUME', W / 2, cy + hL / 2 + 10, 1, '#a09888', 'center');
+  let y = cy + hL / 2 + 8;
+  txt(vctx, 'OR PRESS ESC TO RESUME', W / 2, y, 1, '#a09888', 'center'); y += 14;
+  const pk = Object.keys(G.perks).filter(k => G.perks[k] > 0).map(k => ITEMS[k].name + (G.perks[k] > 1 ? ' X' + G.perks[k] : ''));
+  if (pk.length) {
+    txt(vctx, 'YOUR PERKS', W / 2, y, 1, '#ffb020', 'center'); y += 10;
+    for (const l of wrap(pk.join(', '), W - 20)) { txt(vctx, l, W / 2, y, 1, '#e0d8c8', 'center'); y += 9; }
+  }
 }
 function drawTally() {
   dim(.62);
@@ -1379,22 +1692,27 @@ function drawTally() {
 }
 function drawOver() {
   dim(0, 'rgba(70,0,0,.68)');
-  const ts = fitSc('YOU DIED', 5, W - 10);
-  txt(vctx, 'YOU DIED', W / 2, 8, ts, '#e01010', 'center', '#000');
-  let y = 8 + ts * 7 + 8;
-  txt(vctx, 'SCORE ' + G.score, W / 2, y, 2, '#ffd040', 'center'); y += 18;
-  txt(vctx, 'LEVEL ' + G.n + '   KILLS ' + G.kills + '   ' + G.D.name, W / 2, y, 1, '#e0d8c8', 'center'); y += 11;
-  if (G.lastRank > 0 && ((G.t * 3) | 0) & 1) txt(vctx, G.lastRank === 1 ? 'NEW HIGH SCORE!' : 'RANK #' + G.lastRank + ' ON THE LEADERBOARD!', W / 2, y, 1, '#ffffff', 'center');
-  y += 12;
-  const mod = menuMod(W * .3), hL = tagDims(mod).H / ky, cy = y + 16 + hL / 2;
+  const ts = fitSc('YOU DIED', 5, W - 10), R = G.result || {};
+  txt(vctx, 'YOU DIED', W / 2, 6, ts, '#e01010', 'center', '#000');
+  let y = 6 + ts * 7 + 6;
+  const head = (G.player ? G.player + '  ' : '') + G.score;
+  txt(vctx, head, W / 2, y, fitSc(head, 2, W - 10), '#ffd040', 'center'); y += 17;
+  txt(vctx, 'LEVEL ' + G.n + '   KILLS ' + G.kills + '   ' + G.D.name, W / 2, y, 1, '#e0d8c8', 'center'); y += 10;
+  const l1 = R.first ? 'YOUR FIRST GAME IS ON THE BOARD!' : R.pb ? 'NEW PERSONAL BEST! (OLD: ' + R.prev + ')' : 'YOUR BEST: ' + R.best;
+  if (!R.pb || ((G.t * 3) | 0) & 1) txt(vctx, l1, W / 2, y, 1, R.pb ? '#ffffff' : '#c8c0b0', 'center');
+  y += 10;
+  const l2 = !R.rank ? '' : R.rank === 1 ? (R.of > 1 ? 'YOU ARE #1 OF ' + R.of + ' PLAYERS!' : 'YOU ARE #1!') : '#' + R.rank + ' OF ' + R.of + ' - ' + (R.above.s - R.best) + ' BEHIND ' + R.above.n;
+  txt(vctx, l2, W / 2, y, 1, '#ffb020', 'center'); y += 10;
+  const mod = midMod(W * .24), hL = tagLow(mod).h, cy = y + 17 + hL / 2;
   button(MC.again, W * .3, cy, mod, 'PLAY AGAIN', () => newGame(G.diff));
   button(MC.quit, W * .7, cy, mod, 'MENU', toTitle);
-  scoreLines(W / 2, cy + hL / 2 + 10, 5, G.lastRank);
+  miniBoard(cy + hL / 2 + 6, H - 3, G.player);
 }
 function draw() {
   octx.clearRect(0, 0, over.width, over.height);
   G.targets.length = 0;
-  const m = G.mode, full = m === 'title' || m === 'over';
+  const m = G.mode, full = m === 'title' || m === 'over' || m === 'who' || m === 'name' || m === 'board';
+  const play = m === 'intro' || m === 'walk' || m === 'fight' || m === 'cleared';
   VH = full ? H : H - SBH;
   PLANE = .5 * W / VH;
   G.hzOff = (G.shake > 0 ? randi(-2, 2) : 0) + (m === 'walk' ? Math.round(Math.sin(cam.bob * 4.4) * 1.2) : 0);
@@ -1403,19 +1721,28 @@ function draw() {
   for (const p of popups) { vctx.globalAlpha = Math.max(0, 1 - p.t / .9); txt(vctx, p.text, p.x, p.y - p.t * 16, 1, p.color, 'center'); }
   vctx.globalAlpha = 1;
   if (!full && m !== 'tally') drawGunAndBeams();
+  if (G.freezeT > 0) { vctx.fillStyle = 'rgba(140,210,255,.2)'; vctx.fillRect(0, 0, W, VH); }
+  else if (G.slowT > 0) { vctx.fillStyle = 'rgba(120,255,140,.08)'; vctx.fillRect(0, 0, W, VH); }
+  if (G.shieldT > 0) { vctx.strokeStyle = 'rgba(90,180,255,' + (.5 + .3 * Math.sin(G.t * 10)) + ')'; vctx.lineWidth = 4; vctx.strokeRect(2, 2, W - 4, VH - 4); }
   if (G.red > 0) { vctx.fillStyle = 'rgba(255,0,0,' + Math.min(.6, G.red * .7) + ')'; vctx.fillRect(0, 0, W, VH); }
   if (G.gold > 0) { vctx.fillStyle = 'rgba(255,210,60,' + G.gold * .5 + ')'; vctx.fillRect(0, 0, W, VH); }
+  if (G.nukeT > 0) { vctx.fillStyle = 'rgba(255,255,240,' + Math.min(1, G.nukeT * 1.4) + ')'; vctx.fillRect(0, 0, W, VH); }
   if (!full) drawStatus();
   G.msgs.forEach((ms, i) => { vctx.globalAlpha = ms.t > 2.5 ? Math.max(0, (3 - ms.t) / .5) : 1; txt(vctx, ms.text, 4, 4 + i * 9, 1, '#f0e8d8'); });
   vctx.globalAlpha = 1;
-  if (G.comboShow > 0 && G.combo > 1 && (m === 'walk' || m === 'fight' || m === 'cleared')) txt(vctx, 'COMBO X' + G.combo, W / 2, 4, 2, '#ffb020', 'center');
+  if (G.comboShow > 0 && G.combo > 1 && play) txt(vctx, 'COMBO X' + G.combo, W / 2, 4, 2, '#ffb020', 'center');
   if (m === 'walk' || m === 'fight' || m === 'cleared') drawEntityTags();
+  if (play) drawPlayHud();
   if (m === 'title') drawTitle();
+  else if (m === 'who') drawWho();
+  else if (m === 'name') drawName();
+  else if (m === 'board') drawBoard();
+  else if (m === 'loot') drawLoot();
   else if (m === 'paused') drawPaused();
   else if (m === 'tally') drawTally();
   else if (m === 'over') drawOver();
   drawBanner();
-  if (DEBUG) txt(vctx, fps + ' FPS ' + ms + 'MS ' + W + 'X' + H, W - 3, full ? 3 : 14, 1, '#40ff40', 'right');
+  if (DEBUG) txt(vctx, fps + ' FPS ' + ms + 'MS ' + W + 'X' + H, W - 3, full ? 3 : 32, 1, '#40ff40', 'right');
 }
 
 // ---------- scanner input ----------
@@ -1440,6 +1767,7 @@ function onScan(raw) {
   const s = String(raw).replace(/[^0-9A-Za-z]/g, '');
   if (!s) return;
   S.unlock();
+  G.idleT = 0;
   let t = null;
   for (const x of G.targets) if (x.code.text === s) { t = x; break; }
   if (!t) for (const x of G.targets) if (s.indexOf(x.code.text) >= 0) { t = x; break; }
@@ -1449,12 +1777,12 @@ function onScan(raw) {
     if (['walk', 'fight', 'cleared'].includes(G.mode)) msg('UNKNOWN BARCODE');
     return;
   }
-  if (t.kind === 'menu') { snd('menu'); t.act(); return; }
+  if (t.kind === 'menu') { if (!t.quiet) snd('menu'); t.act(); return; }
   const o = t.ref, r = t.rect;
   G.fireT = .15; G.muz = .07;
   beams.push({ x: (r[0] + r[2] / 2) / kx, y: (r[1] + r[3] / 2) / ky, t: 0 });
   snd('fire');
-  if (o.cls === 'enemy') damageEnemy(o, 1, false);
+  if (o.cls === 'enemy') damageEnemy(o, scanDamage(), false);
   else if (o.cls === 'item') useItem(o);
   else if (o.cls === 'proj') destroyProj(o);
 }
@@ -1470,7 +1798,10 @@ document.addEventListener('keydown', e => {
   S.unlock();
   const k = e.keyCode || e.which || 0;
   if (e.key === 'Escape' || k === 27) {
-    if (G.mode === 'paused') resumeGame(); else if (['intro', 'walk', 'fight', 'cleared'].includes(G.mode)) pauseGame(); else if (G.mode !== 'title') quitGame();
+    if (G.mode === 'paused') resumeGame();
+    else if (['intro', 'walk', 'fight', 'cleared'].includes(G.mode)) pauseGame();
+    else if (G.mode === 'name') { if (recentPlayers().length) setMode('who'); else toTitle(); }
+    else if (G.mode !== 'title' && G.mode !== 'loot') quitGame();
     return;
   }
   if (e.key === 'Enter' || e.key === 'Tab' || k === 13 || k === 9) { e.preventDefault(); flush(); return; }
@@ -1569,6 +1900,15 @@ function snd(n) {
       case 'clear': [523, 659, 784, 1046].forEach((f, i) => S.tone('square', f, f, .12, .12, i * .09)); break;
       case 'menu': S.tone('square', 880, 1320, .09, .14); break;
       case 'buzz': S.tone('sawtooth', 110, 100, .2, .18); break;
+      case 'crate': [784, 1046, 1318].forEach((f, i) => S.tone('triangle', f, f, .14, .14, i * .07)); break;
+      case 'loot': [523, 784, 1046, 1568].forEach((f, i) => S.tone('square', f, f * 1.01, .1, .1, i * .06)); S.noise(.4, .08, 'highpass', 6000, 3000, .1); break;
+      case 'freeze': S.tone('sine', 2400, 300, .7, .16); S.noise(.6, .12, 'highpass', 5000, 1500); break;
+      case 'slow': S.tone('sawtooth', 400, 80, .8, .12); break;
+      case 'shield': S.tone('sine', 300, 600, .5, .2); S.tone('sine', 450, 900, .5, .12); break;
+      case 'block': S.tone('triangle', 1600, 1200, .12, .15); break;
+      case 'nuke': S.noise(2, 1, 'lowpass', 2500, 40); S.tone('sine', 70, 20, 1.6, .8); S.tone('sawtooth', 1200, 200, 1, .1); break;
+      case 'revive': [392, 523, 659, 784, 1046].forEach((f, i) => S.tone('square', f, f, .14, .13, i * .08)); break;
+      case 'pass': S.tone('square', 660, 660, .08, .12); S.tone('square', 880, 880, .16, .12, .09); break;
     }
   } catch (e) { /* audio is optional */ }
 }
@@ -1578,21 +1918,50 @@ function toggleSound() {
   if (S.on) { S.unlock(); snd('menu'); }
 }
 
-// ---------- high scores (this device only) ----------
-let scoreCache = null;
-function loadScores() {
-  if (scoreCache) return scoreCache;
-  try { const a = JSON.parse(localStorage.getItem('hellscan.scores') || '[]'); scoreCache = Array.isArray(a) ? a.filter(e => e && typeof e.s === 'number') : []; } catch (e) { scoreCache = []; }
-  return scoreCache;
+// ---------- leaderboard (stored on this device, shared by everyone who plays on it) ----------
+// hellscan.best: { NAME: { s, l, k, d, t, games, last } }  - each player's best game, for the all-time board
+// hellscan.games: [ { n, s, l, k, d, t } ]                 - recent games, for the weekly board
+// hellscan.players: { NAME: lastPlayedTime }                - for the "who's playing?" list
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); const o = v ? JSON.parse(v) : d; return o && typeof o === typeof d && Array.isArray(o) === Array.isArray(d) ? o : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } },
+};
+let BEST = null, GAMES = null, PLAYERS = null;
+function loadBoard() {
+  if (BEST) return;
+  BEST = store.get('hellscan.best', {}); GAMES = store.get('hellscan.games', []); PLAYERS = store.get('hellscan.players', {});
 }
-function saveScore(entry) {
-  const a = loadScores();
-  a.push(entry);
-  a.sort((x, y) => y.s - x.s);
-  const rank = a.indexOf(entry) + 1;
-  a.length = Math.min(a.length, 10);
-  try { localStorage.setItem('hellscan.scores', JSON.stringify(a)); } catch (e) { /* storage blocked */ }
-  return rank <= 10 ? rank : 0;
+function recentPlayers() { loadBoard(); return Object.keys(PLAYERS).sort((a, b) => PLAYERS[b] - PLAYERS[a]); }
+function touchPlayer(name) { loadBoard(); PLAYERS[name] = Date.now(); store.set('hellscan.players', PLAYERS); }
+function bestOf(name) { loadBoard(); const b = BEST[name]; return b && b.s >= 0 ? b : null; }
+function weekStart() { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
+function boardRows(tab) {
+  loadBoard();
+  if (tab === 'week') {
+    const ws = weekStart(), m = {};
+    for (const g of GAMES) {
+      if (g.t < ws) continue;
+      const r = m[g.n] || (m[g.n] = { n: g.n, s: -1, l: 0, d: 1, games: 0 });
+      r.games++;
+      if (g.s > r.s) { r.s = g.s; r.l = g.l; r.d = g.d; }
+    }
+    return Object.values(m).sort((a, b) => b.s - a.s);
+  }
+  return Object.keys(BEST).filter(n => BEST[n].s >= 0).map(n => ({ n, s: BEST[n].s, l: BEST[n].l, d: BEST[n].d, games: BEST[n].games || 0 })).sort((a, b) => b.s - a.s);
+}
+function recordGame() {
+  loadBoard();
+  const name = G.player || 'PLAYER', now = Date.now();
+  GAMES.push({ n: name, s: G.score, l: G.n, k: G.kills, d: G.diff, t: now });
+  if (GAMES.length > 500) GAMES.splice(0, GAMES.length - 500);
+  const b = BEST[name] || { s: -1, games: 0 }, prev = b.s;
+  b.games = (b.games || 0) + 1; b.last = now;
+  if (G.score > prev) { b.s = G.score; b.l = G.n; b.k = G.kills; b.d = G.diff; b.t = now; }
+  BEST[name] = b;
+  store.set('hellscan.best', BEST); store.set('hellscan.games', GAMES);
+  touchPlayer(name);
+  const rows = boardRows('all'), rank = rows.findIndex(r => r.n === name) + 1;
+  return { first: prev < 0, pb: prev >= 0 && G.score > prev, prev, best: b.s, rank, of: rows.length, above: rank > 1 ? rows[rank - 2] : null };
 }
 
 // ---------- boot ----------
@@ -1634,7 +2003,7 @@ window.addEventListener('resize', resize);
 toTitle();
 focusScan();
 requestAnimationFrame(loop);
-window.HELLSCAN = { G, scan: onScan, codes: () => G.targets.map(t => t.code.text), perf: () => ({ fps, ms }) };
+window.HELLSCAN = { G, scan: onScan, codes: () => G.targets.map(t => t.code.text), targets: () => G.targets.map(t => ({ code: t.code.text, kind: t.kind, label: t.label || (t.ref && (t.ref.type || t.ref.kind)) || '', cls: t.ref && t.ref.cls, state: t.ref && t.ref.state, d: t.ref && t.ref.scr ? t.ref.scr.ty : 99 })), perf: () => ({ fps, ms }), test: { openLoot, applyItem, dropCrate, hurt, ITEMS } };
 })();
 </script>
 </body>

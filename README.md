@@ -7,13 +7,53 @@ Built for a SuSoft POS terminal (Android 7.1.2, Chrome 119, RK3399), so it is a 
 ## How to play
 
 1. Open the page and scan **EASY**, **NORMAL** or **HARD** on the title screen.
-2. You walk through the store automatically. When you reach a room, demons teleport in.
-3. Scan a demon's barcode to shoot it. Big demons take several hits, and their barcode changes after each one.
-4. A tag flashing yellow or red means that demon (or fireball) is about to hurt you. Shoot it first. Hitting a demon interrupts its attack.
-5. Scan a **medkit** (green tag) for +25 health, **armor** (blue) for +50 armor, and a **barrel** (orange) to blow up the demons near it.
-6. Clear 6 rooms. The last one has a boss. Levels repeat with new themes and get harder each time.
+2. Scan your name on the **Who's playing?** screen. The first time, scan **NEW PLAYER** and spell your name by scanning letters, then **DONE**.
+3. You walk through the store automatically. When you reach a room, demons teleport in.
+4. Scan a demon's barcode to shoot it. Big demons take several hits, and their barcode changes after each one.
+5. A tag flashing yellow or red means that demon (or fireball) is about to hurt you. Shoot it first. Hitting a demon interrupts its attack.
+6. Scan a **medkit** (green tag) for +25 health, **armor** (blue) for +50 armor, and a **barrel** (orange) to blow up the demons near it.
+7. Clear 6 rooms. The last one has a boss. Levels repeat with new themes and get harder each time.
 
-Scan **PAUSE** in the status bar to stop at any time (for example, when a customer shows up). Esc also pauses. Scores are saved on the device (top 10).
+Scan **PAUSE** in the status bar to stop at any time (for example, when a customer shows up). Esc also pauses.
+
+## Leaderboard
+
+Everyone who plays on the same machine competes on one leaderboard.
+
+- Scan **LEADERBOARD** on the title screen to see each player's best game. Scan **THIS WEEK** to switch to scores since Monday.
+- During a game, the top-right corner shows who you need to beat next (`NEXT: OLA 12345`) and announces it when you pass them.
+- The game-over screen shows your personal best and your rank, and how far you are behind the player above you.
+- Points are multiplied by difficulty (Easy ×0.6, Normal ×1, Hard ×1.5), so everyone can share one board.
+
+Scores are stored in the browser on that machine. Clearing Chrome's site data for the game resets the board.
+
+## Loot crates
+
+Gold-tagged **supply crates** sometimes appear. Demons can drop them, a cleared room may leave one behind, and the boss always drops a **Warlord chest** with better odds. Scan a crate to pause the game and see three items. Scan the one you want.
+
+| Rarity | Item | Type | Effect |
+|---|---|---|---|
+| Common | Medpack | Item | Heals 35 health when used |
+| Common | Armor plate | Instant | +35 armor |
+| Common | Coupon | Instant | +1500 points |
+| Common | Energy drink | Item | Demons move and attack at half speed for 8 s |
+| Uncommon | Frost grenade | Item | Freezes all demons and fireballs for 6 s |
+| Uncommon | Regen patch | Perk | Heal 1 health every 3 s while fighting |
+| Uncommon | Loyalty card | Perk | +25% points |
+| Uncommon | Thick skin | Perk | Take 20% less damage |
+| Rare | Force field | Item | Nothing can hurt you for 7 s |
+| Rare | Pipe bomb | Item | 3 damage to every demon in the room |
+| Rare | Vampire laser | Perk | +2 health per kill |
+| Rare | Double tap | Perk | Every scan does +1 damage |
+| Epic | Nuke | Item | Kills every demon in the room (bosses take 6) |
+| Epic | Lucky charm | Perk | More crates and rarer loot |
+| Epic | Mega kit | Instant | Full health and full armor |
+| Legendary | Extra life | Perk | Come back once with full health |
+| Legendary | Golden scanner | Perk | Triple damage and +50% points |
+
+- **Items** go in your backpack, shown in the bottom corners of the screen (2 slots). Scan an item's barcode to use it. If both slots are full, a new item replaces the oldest one.
+- **Perks** last for the rest of the game. Most stack 2–3 times (Golden scanner only once). Their icons are in the top-right corner.
+- **Instant** items work as soon as you pick them.
 
 ## Play it
 
@@ -47,7 +87,7 @@ Every later push to `main` republishes the site automatically.
 | Option | Default | Use it when |
 |---|---|---|
 | `?module=3` | `2` | Barcodes are hard to read. This is the narrowest bar width in CSS pixels; larger values give bigger barcodes. |
-| `?digits=6` | `4` | The scanner rejects short Code 128 barcodes (minimum-length setting). |
+| `?digits=6` | `4` | The scanner rejects short Code 128 barcodes (minimum-length setting). Must be an even number from 4 to 12. |
 | `?res=180` | `216` | You want a lower internal resolution, for speed or a chunkier look. |
 | `?nofs` | off | You don't want fullscreen on start. |
 | `?touch` | off | You want tapping a tag to shoot it, for testing without a scanner. |
