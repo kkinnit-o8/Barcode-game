@@ -15,8 +15,9 @@ Built for a SuSoft POS terminal (Android 7.1.2, Chrome 119), but it works with a
 | Game | Folder | What it is |
 |---|---|---|
 | [HELLSCAN](hellscan/README.md) | `hellscan/` | Doom-style shooter. Every demon carries a barcode; scan it to shoot it. Loot crates, bosses and a shared leaderboard. |
+| [STOCK DEFENSE](stock-defense/README.md) | `stock-defense/` | Bloons-style tower defense. Groceries ride the conveyor belt to the exit; scan pads to build and upgrade scanners that scan them first. |
 
-On the home page, scan a game's **SCAN TO PLAY** barcode or tap its card to start it. Each game has a way back to the home page (in HELLSCAN: the **ALL GAMES** barcode on the title screen, or Esc).
+On the home page, scan a game's **SCAN TO PLAY** barcode or tap its card to start it. Each game has an **ALL GAMES** barcode on its title screen that goes back to the home page (Esc works too).
 
 ## How the site is organised
 
@@ -26,6 +27,7 @@ hellscan/           one folder per game, each a single self-contained index.html
   index.html
   preview.png       screenshot shown on the game's card
   README.md
+stock-defense/      same layout
 qr-code.png / .svg  QR code for the home page
 .nojekyll           tells GitHub Pages to serve the files as-is
 ```
@@ -34,9 +36,9 @@ qr-code.png / .svg  QR code for the home page
 
 1. Create a folder with the game in `index.html`, for example `checkout-rush/index.html`. Keep it to one file with no external libraries or fonts, so it loads instantly on the POS browser.
 2. Add a `preview.png` screenshot (about 768×368).
-3. Add an entry to the `GAMES` list near the top of the script in the root `index.html`: name, folder, preview, description, and a 6-digit barcode number starting with `71` (`710002`, `710003`, …).
+3. Add an entry to the `GAMES` list near the top of the script in the root `index.html`: name, folder, preview, description, and a 6-digit barcode number starting with `71` (HELLSCAN is `710001`, STOCK DEFENSE `710002`; the next game gets `710003`).
 4. In the game, link back to the home page with `location.href = '../'` from a scannable "ALL GAMES" barcode.
-5. If the game keeps scores, store them in `localStorage` under its own prefix (like `hellscan.`). To show them on the card, give its `GAMES` entry a `top` function.
+5. If the game keeps scores, store them in `localStorage` under its own prefix (like `hellscan.` or `stockdef.`). Player names are shared through `hellscan.players`, so people don't have to type their name again in every game. To show top players on the card, give its `GAMES` entry a `top` function.
 
 Barcode rules all games follow: Code 128, digits only, a white quiet zone around every barcode, and bars at least 2 CSS pixels wide.
 
