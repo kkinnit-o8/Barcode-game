@@ -77,8 +77,8 @@ Upgrade prices and descriptions are shown in the game when you scan a scanner.
 | | Rounds | Lives | Prices | Items per round | Score |
 |---|---|---|---|---|---|
 | Easy | 30 | 200 | −15% | −30% | ×0.6 |
-| Normal | 40 | 150 | normal | −15% | ×1 |
-| Hard | 50 | 100 | +8% | full | ×1.5 |
+| Normal | 40 | 150 | normal | −20% | ×1 |
+| Hard | 50 | 100 | +8% | −5% | ×1.5 |
 
 Everyone starts with $650.
 
