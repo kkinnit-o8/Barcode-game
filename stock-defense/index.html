@@ -143,8 +143,8 @@ const cc = n => ccache[n] || (ccache[n] = makeCode(String(n) + '0'.repeat(DIGITS
 const view = $('view'), vctx = view.getContext('2d', { alpha: false });
 const over = $('over'), octx = over.getContext('2d');
 const scanEl = $('scan');
-const H = 270, MAPW = 320;
-let W = 480, PX0 = MAPW, PW = 160, dpr = 1, kx = 1, ky = 1, OX = 0, OY = 0, minMod = 2, panelCanvas = null;
+const W = 480, H = 270, HUD = 36;  // low-res screen; the map fills it, under a status bar HUD px tall
+let dpr = 1, kx = 1, ky = 1, OX = 0, OY = 0, minMod = 2;
 
 // ---------- pixel painter ----------
 const prng = mulberry32(7);
@@ -266,11 +266,11 @@ const ISPR = {};
 // kind: bolt (projectile), ring (8 ways), aura (burn all in range), hitscan, bomb, pulse (freeze), support, income
 const TOWERS = [
   { id: 'handheld', name: 'HANDHELD', cost: 200, col: '#e2aa12', info: 'BASIC LASER SCANNER',
-    base: { kind: 'bolt', range: 42, rate: 1.0, dmg: 1, pierce: 2, count: 1, spread: .2, speed: 300 },
+    base: { kind: 'bolt', range: 47, rate: 1.0, dmg: 1, pierce: 2, count: 1, spread: .2, speed: 300 },
     up: [[['QUICK TRIGGER', 140, 'FIRES 50% FASTER', s => { s.rate *= 1.5; }], ['TWIN BEAM', 280, 'FIRES 2 BEAMS', s => { s.count = 2; }], ['LASER SHOTGUN', 850, '5 BEAMS AND MORE PIERCE', s => { s.count = 5; s.spread = .55; s.pierce += 1; s.rate *= 1.2; }]],
-      [['LONG RANGE', 100, '+30% RANGE', s => { s.range += 12; }], ['SHARP LASER', 240, '+1 DAMAGE, +3 PIERCE', s => { s.dmg += 1; s.pierce += 3; }], ['2D IMAGER', 650, 'SEES HIDDEN, READS SMUDGED', s => { s.camo = true; s.smudge = true; s.dmg += 1; }]]] },
+      [['LONG RANGE', 100, '+30% RANGE', s => { s.range += 14; }], ['SHARP LASER', 240, '+1 DAMAGE, +3 PIERCE', s => { s.dmg += 1; s.pierce += 3; }], ['2D IMAGER', 650, 'SEES HIDDEN, READS SMUDGED', s => { s.camo = true; s.smudge = true; s.dmg += 1; }]]] },
   { id: 'flatbed', name: 'FLATBED', cost: 300, col: '#e01818', info: 'SHOOTS 8 WAYS AT ONCE',
-    base: { kind: 'ring', range: 26, rate: .8, dmg: 1, pierce: 2, count: 8, speed: 170 },
+    base: { kind: 'ring', range: 30, rate: .8, dmg: 1, pierce: 2, count: 8, speed: 170 },
     up: [[['FAST MOTOR', 200, 'FIRES 40% FASTER', s => { s.rate *= 1.4; }], ['MORE LINES', 320, '12 BEAMS', s => { s.count = 12; }], ['SCAN TUNNEL', 1100, 'BURNS EVERYTHING IN RANGE', s => { s.kind = 'aura'; s.rate = 4; }]],
       [['WIDE GLASS', 160, '+8 RANGE', s => { s.range += 8; }], ['HOT BEAMS', 380, '+1 DAMAGE, +1 PIERCE', s => { s.dmg += 1; s.pierce += 1; }], ['BLUE LASERS', 900, 'READS SMUDGED, 2X VS CRATES', s => { s.smudge = true; s.dmg += 1; s.crate *= 2; }]]] },
   { id: 'pricegun', name: 'PRICE GUN', cost: 350, col: '#ff8a1f', info: 'HITS ANYWHERE ON THE MAP',
@@ -278,16 +278,16 @@ const TOWERS = [
     up: [[['FULL AUTO', 300, 'FIRES 60% FASTER', s => { s.rate *= 1.6; }], ['NIGHT SCOPE', 520, 'FASTER, SEES HIDDEN', s => { s.rate *= 1.4; s.camo = true; }], ['MACHINE LABELER', 2400, 'FIRES 2.5X FASTER', s => { s.rate *= 2.5; }]],
       [['HEAVY LABELS', 350, '4 DAMAGE PER SHOT', s => { s.dmg = 4; }], ['PRICE SLASH', 950, '7 DAMAGE, 2X VS CRATES', s => { s.dmg = 7; s.crate *= 2; }], ['CLEARANCE', 2800, '15 DAMAGE, STUNS BIG ITEMS', s => { s.dmg = 15; s.stun = .5; }]]] },
   { id: 'bomb', name: 'LABEL BOMB', cost: 520, col: '#f0f0f0', info: 'EXPLODING LABEL ROLLS',
-    base: { kind: 'bomb', range: 44, rate: .6, dmg: 1, pierce: 16, radius: 13, speed: 150, smudge: true },
+    base: { kind: 'bomb', range: 48, rate: .6, dmg: 1, pierce: 16, radius: 13, speed: 150, smudge: true },
     up: [[['BIGGER ROLLS', 350, 'BIGGER BLASTS', s => { s.radius += 5; }], ['HEAVY PRINT', 700, '2 DAMAGE, HITS MORE', s => { s.dmg = 2; s.pierce = 26; }], ['PAPER STORM', 2000, 'HUGE 3-DAMAGE BLASTS', s => { s.dmg = 3; s.radius += 8; s.pierce = 45; }]],
       [['FAST FEED', 260, 'FIRES 40% FASTER', s => { s.rate *= 1.4; }], ['STICKY LABELS', 450, 'BLASTS SLOW ITEMS DOWN', s => { s.slow = .5; s.slowT = 2; }], ['PALLET BUSTER', 1500, '4X VS CRATES AND PALLETS', s => { s.crate *= 4; s.dmg += 1; }]]] },
   { id: 'freezer', name: 'FREEZER', cost: 350, col: '#8ad8ff', info: 'FREEZES NEARBY ITEMS',
-    base: { kind: 'pulse', range: 28, rate: .55, dmg: 0, freeze: 1, pierce: 40 },
+    base: { kind: 'pulse', range: 31, rate: .55, dmg: 0, freeze: 1, pierce: 40 },
     up: [[['DEEP FREEZE', 250, 'FREEZES LONGER', s => { s.freeze = 1.6; }], ['FROST BITE', 420, 'PULSES DO 1 DAMAGE', s => { s.dmg = 1; }], ['ABSOLUTE ZERO', 1600, 'SLOWS PALLETS TOO, FASTER', s => { s.freeze = 2.2; s.bigSlow = true; s.rate *= 1.3; }]],
       [['WIDE VENTS', 180, '+10 RANGE', s => { s.range += 10; }], ['CHILL ZONE', 480, 'SLOWS ITEMS IN RANGE', s => { s.aura = .4; }], ['BLIZZARD', 1400, '2X PULSES, FREEZES PIZZA', s => { s.rate *= 2; s.dmg += 1; s.coldPizza = true; }]]] },
   { id: 'cam', name: 'SECURITY CAM', cost: 450, col: '#9aa4b0', info: 'TOWERS NEAR IT SEE HIDDEN ITEMS',
-    base: { kind: 'support', range: 80 },
-    up: [[['WIDE ANGLE', 220, '+22 RANGE', s => { s.range += 22; }], ['MOTION TRACKING', 900, 'TOWERS IN RANGE FIRE 20% FASTER', s => { s.bRate = 1.2; }], ['AI ANALYTICS', 2200, 'TOWERS IN RANGE +1 DAMAGE AND READ SMUDGED', s => { s.bDmg = 1; s.bSmudge = true; }]],
+    base: { kind: 'support', range: 115 },
+    up: [[['WIDE ANGLE', 220, '+25 RANGE', s => { s.range += 25; }], ['MOTION TRACKING', 900, 'TOWERS IN RANGE FIRE 20% FASTER', s => { s.bRate = 1.2; }], ['AI ANALYTICS', 2200, 'TOWERS IN RANGE +1 DAMAGE AND READ SMUDGED', s => { s.bDmg = 1; s.bSmudge = true; }]],
       [['ALARM', 300, 'ITEMS IN RANGE MOVE 15% SLOWER', s => { s.aura = .15; }], ['SPOTLIGHT', 600, 'TOWERS IN RANGE +15% RANGE', s => { s.bRange = 1.15; }], ['LOCKDOWN', 2000, 'STUNS ITEMS IN RANGE EVERY 8 SEC', s => { s.lockdown = 8; }]]] },
   { id: 'checkout', name: 'SELF-CHECKOUT', cost: 900, col: '#58e070', info: 'EARNS $80 EVERY ROUND',
     base: { kind: 'income', range: 0, income: 80 },
@@ -313,10 +313,11 @@ function drawTowerHead(id, gold) {
 const TSPR = {};
 
 // ---------- map: the checkout floor ----------
-const PATH = [[-14, 40], [236, 40], [236, 112], [62, 112], [62, 182], [240, 182], [240, 242], [336, 242]];
-// Pads in a row sit 72 px apart so their barcodes never overlap, even on a 4:3 screen.
-const SLOTS = [[36, 66], [108, 66], [180, 66], [278, 70], [24, 137], [108, 137], [180, 137], [252, 137], [44, 212], [116, 212], [188, 212], [276, 190]];
-const STAGGER = [1, 5, 7, 9];  // pads whose barcode moves down when barcodes are too wide (see drawSlotTags)
+const PATH = [[-14, 96], [448, 96], [448, 208], [-14, 208]];
+// [x, y, barcode above the pad?]. Every pad is 26 px from a belt with its barcode on the far side, and barcodes
+// in a row are 110 px apart, so a scanner aimed at one barcode doesn't pick up its neighbour.
+const SLOTS = [[66, 70, 1], [176, 70, 1], [286, 70, 1], [396, 70, 1], [66, 122, 0], [286, 122, 0], [176, 182, 1], [396, 182, 1],
+  [66, 234, 0], [176, 234, 0], [286, 234, 0], [396, 234, 0]];
 const BELT = 14, SEG = [];
 let PATHLEN = 0;
 (function () {
@@ -335,12 +336,12 @@ function posAt(s) {
 }
 let mapCanvas = null;
 function buildMap() {
-  const c = mk(MAPW, H), g = c.getContext('2d'), r = mulberry32(11);
-  for (let y = 0; y < H; y += 16) for (let x = 0; x < MAPW; x += 16) { g.fillStyle = ((x + y) >> 4) & 1 ? '#3d3934' : '#36322d'; g.fillRect(x, y, 16, 16); }
+  const c = mk(W, H), g = c.getContext('2d'), r = mulberry32(11);
+  for (let y = 0; y < H; y += 16) for (let x = 0; x < W; x += 16) { g.fillStyle = ((x + y) >> 4) & 1 ? '#3d3934' : '#36322d'; g.fillRect(x, y, 16, 16); }
   g.fillStyle = 'rgba(0,0,0,.22)';
-  for (let x = 0; x < MAPW; x += 16) g.fillRect(x, 0, 1, H);
-  for (let y = 0; y < H; y += 16) g.fillRect(0, y, MAPW, 1);
-  for (let i = 0; i < 900; i++) { g.fillStyle = r() < .5 ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.08)'; g.fillRect(r() * MAPW | 0, r() * H | 0, 1, 1); }
+  for (let x = 0; x < W; x += 16) g.fillRect(x, 0, 1, H);
+  for (let y = 0; y < H; y += 16) g.fillRect(0, y, W, 1);
+  for (let i = 0; i < 1300; i++) { g.fillStyle = r() < .5 ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.08)'; g.fillRect(r() * W | 0, r() * H | 0, 1, 1); }
   const shelf = (x, y, w, h) => {
     g.fillStyle = '#1e2024'; g.fillRect(x, y, w, h);
     g.fillStyle = '#6a6f78'; g.fillRect(x, y, w, 1); g.fillRect(x, y + h - 1, w, 1); g.fillRect(x, y, 1, h); g.fillRect(x + w - 1, y, 1, h);
@@ -351,7 +352,7 @@ function buildMap() {
       g.fillStyle = '#4a4f56'; g.fillRect(x + 1, yy + 5, w - 2, 1);
     }
   };
-  shelf(24, 3, 212, 23); shelf(262, 3, 56, 23); shelf(0, 252, 262, 17);
+  shelf(130, 110, 92, 16); shelf(350, 110, 80, 16); shelf(20, 176, 92, 16); shelf(240, 176, 92, 16);
   for (const s of SEG) {
     const x0 = Math.min(s.x0, s.x1), x1 = Math.max(s.x0, s.x1), y0 = Math.min(s.y0, s.y1), y1 = Math.max(s.y0, s.y1), h = BELT / 2;
     g.fillStyle = '#80868f'; g.fillRect(x0 - h - 2, y0 - h - 2, x1 - x0 + BELT + 4, y1 - y0 + BELT + 4);
@@ -361,20 +362,10 @@ function buildMap() {
     g.fillStyle = '#24262a'; g.fillRect(x0 - h, y0 - h, x1 - x0 + BELT, y1 - y0 + BELT);
   }
   for (const [x, y] of SLOTS) { g.fillStyle = '#26292d'; g.fillRect(x - 10, y - 10, 20, 20); g.fillStyle = '#4c525a'; g.fillRect(x - 10, y - 10, 20, 1); g.fillRect(x - 10, y - 10, 1, 20); g.fillStyle = '#1a1c1f'; g.fillRect(x - 10, y + 9, 20, 1); g.fillRect(x + 9, y - 10, 1, 20); }
-  g.fillStyle = '#5a3a1a'; g.fillRect(0, 28, 5, 25); txt(g, 'IN', 7, 18, 1, '#9aa4b0');
-  g.fillStyle = '#7a1010'; g.fillRect(286, 254, 26, 11); txt(g, 'EXIT', 288, 256, 1, '#ffffff', 'left', null);
-  g.fillStyle = '#2a2d31'; g.fillRect(316, 230, 4, 24);
+  g.fillStyle = '#5a3a1a'; g.fillRect(0, 82, 5, 28); txt(g, 'IN', 8, 74, 1, '#9aa4b0');
+  g.fillStyle = '#2a2d31'; g.fillRect(0, 194, 5, 28);
+  g.fillStyle = '#7a1010'; g.fillRect(2, 222, 26, 11); txt(g, 'EXIT', 4, 224, 1, '#ffffff', 'left', null);
   return c;
-}
-const roundY = () => Math.max(22, Math.ceil(3 + tagLow(minMod).h + 2));
-function buildPanel() {
-  const c = mk(PW, H), g = c.getContext('2d');
-  g.fillStyle = '#1b1d20'; g.fillRect(0, 0, PW, H);
-  g.fillStyle = '#3a3e44'; g.fillRect(0, 0, 2, H);
-  const hb = roundY() + 12;  // the header grows on small screens so the PAUSE barcode never covers the round counter
-  g.fillStyle = '#0a160d'; g.fillRect(4, 3, PW - 8, hb - 3);
-  g.fillStyle = '#2a4a30'; g.fillRect(4, 3, PW - 8, 1); g.fillRect(4, hb - 1, PW - 8, 1);
-  panelCanvas = c;
 }
 
 // ---------- state ----------
@@ -432,18 +423,20 @@ function parseRound(def) {
   }
   return q.sort((a, b) => a.t - b.t);
 }
+const SHORT = { energy: 'ENERGY', twin: 'TWIN', pizza: 'PIZZA', smudged: 'SMUDGED', multi: 'MULTI', gift: 'GIFT', cart: 'CART KING' };
+// "17 GUM, 6 HIDDEN CANDY, 12 ENERGY+" (+ = restocks), short enough for the status bar.
 function roundSummary(r) {
   const m = {};
-  for (const q of parseRound(roundDef(r))) { const k = IT[q.type].name + (q.hidden ? ' (HIDDEN)' : q.restock ? ' (RESTOCK)' : ''); m[k] = (m[k] || 0) + 1; }
-  return Object.keys(m).map(k => m[k] + ' ' + k);
+  for (const q of parseRound(roundDef(r))) { const k = (q.hidden ? 'HIDDEN ' : '') + (SHORT[q.type] || IT[q.type].name) + (q.restock ? '+' : ''); m[k] = (m[k] || 0) + 1; }
+  return Object.keys(m).map(k => m[k] + ' ' + k).join(', ');
 }
 // Warns about items that ordinary scanners can't handle.
 function roundTip(r) {
   const q = parseRound(roundDef(r));
-  if (q.some(e => e.hidden)) return 'HIDDEN ITEMS: ONLY SCANNERS NEAR A SECURITY CAM (OR WITH NIGHT SCOPE / 2D IMAGER) CAN SEE THEM!';
-  if (q.some(e => IT[e.type].smudged)) return 'SMUDGED BOXES: ONLY PRICE GUNS, LABEL BOMBS AND 2D IMAGERS CAN READ THEM!';
-  if (q.some(e => IT[e.type].big)) return 'PALLETS ARE TOUGH AND IGNORE FREEZERS. PRICE SLASH AND PALLET BUSTER HIT THEM HARD.';
-  if (q.some(e => e.type === 'pizza' || e.type === 'multi')) return 'FROZEN PIZZA IGNORES FREEZERS.';
+  if (q.some(e => e.hidden)) return 'HIDDEN! NEEDS A SECURITY CAM';
+  if (q.some(e => IT[e.type].smudged)) return 'SMUDGED! PRICE GUN OR BOMB';
+  if (q.some(e => IT[e.type].big)) return 'PALLET! TOUGH, CAN\'T FREEZE';
+  if (q.some(e => e.type === 'pizza' || e.type === 'multi')) return 'PIZZA CAN\'T BE FROZEN';
   return '';
 }
 const hpScale = r => r > 50 ? 1 + .06 * (r - 50) : 1;
@@ -488,6 +481,7 @@ function build(k) {
   computeStats();
   snd('build');
   msg('BUILT ' + TOWERS[k].name);
+  G.sel = null;  // back to the map; scan the pad again to upgrade
 }
 function upgrade(path) {
   const t = towers[G.sel];
@@ -755,11 +749,12 @@ function update(dt) {
   G.modeT += dt;
   for (let i = G.msgs.length - 1; i >= 0; i--) if ((G.msgs[i].t += dt) > 3.5) G.msgs.splice(i, 1);
   G.leakT -= dt; G.shake = Math.max(0, (G.shake || 0) - dt);
+  for (let i = fx.length - 1; i >= 0; i--) if ((fx[i].t += dt) > fx[i].dur) fx.splice(i, 1);
+  if (G.sel !== null) return;  // the store stands still while a build or upgrade menu is open
   if (!G.wave && G.auto && G.autoT > 0 && (G.autoT -= dt) <= 0) startRound();
   let sim = dt * (G.wave ? G.speed : 1) * SIMSPEED;
   G.beltOff = (G.beltOff + BASE * sim) % 8;
   while (sim > 0 && G.mode === 'play') { const s = Math.min(sim, 1 / 60); simStep(s); sim -= s; }
-  for (let i = fx.length - 1; i >= 0; i--) if ((fx[i].t += dt) > fx[i].dur) fx.splice(i, 1);
 }
 
 // ---------- rendering ----------
@@ -818,22 +813,12 @@ function drawFx() {
 function drawMap() {
   vctx.drawImage(mapCanvas, 0, 0);
   drawBelt();
-  if (G.sel !== null) {
-    const t = towers[G.sel], [x, y] = SLOTS[G.sel];
-    if (t && t.st.range && t.st.range < 900) { vctx.fillStyle = 'rgba(255,255,255,.08)'; vctx.strokeStyle = 'rgba(255,255,255,.5)'; vctx.lineWidth = 1; vctx.beginPath(); vctx.arc(x, y, t.st.range, 0, TAU); vctx.fill(); vctx.stroke(); }
-    if (((G.t * 4) | 0) & 1) { vctx.strokeStyle = '#ffe000'; vctx.lineWidth = 1; vctx.strokeRect(x - 10.5, y - 10.5, 21, 21); }
-  }
   drawItems();
   drawTowers();
   drawFx();
-  if (G.leakT > 0) { vctx.fillStyle = 'rgba(255,0,0,' + G.leakT * .5 + ')'; vctx.fillRect(0, 0, MAPW, H); }
-  G.msgs.forEach((m, i) => {
-    vctx.globalAlpha = m.t > 3 ? Math.max(0, (3.5 - m.t) / .5) : 1;
-    vctx.fillStyle = 'rgba(0,0,0,.65)'; vctx.fillRect(2, 2 + i * 9, m.text.length * 6 + 3, 9);
-    txt(vctx, m.text, 4, 3 + i * 9, 1, m.col);
-  });
-  vctx.globalAlpha = 1;
+  if (G.leakT > 0) { vctx.fillStyle = 'rgba(255,0,0,' + G.leakT * .5 + ')'; vctx.fillRect(0, 0, W, H); }
 }
+const lastMsg = () => G.msgs.length ? G.msgs[G.msgs.length - 1] : null;
 
 // ---------- barcodes (crisp, full resolution) ----------
 function tagDims(mod) { const w = MODS * mod, h = Math.max(Math.round(w * .32), Math.round(16 * dpr)), fb = Math.max(2, Math.round(mod * .8)); return { w, h, fb, W: w + 2 * fb, H: h + 2 * fb }; }
@@ -861,107 +846,138 @@ function button(code, lx, ly, mod, label, act, sub, color) {
 }
 const midMod = w => clamp(Math.floor(w * kx / MODS), minMod, Math.max(minMod, Math.round(MOD_CSS * 1.5 * dpr)));
 
-// ---------- the side panel (the POS terminal) ----------
+// ---------- status bar, pad barcodes and the build / upgrade menus ----------
+// The biggest barcode that fits a low-res box, up to twice the normal size: big barcodes are easier to aim at.
+function fitMod(maxW, maxH) {
+  let m = minMod;
+  while (m < 2 * minMod && tagDims(m + 1).W <= maxW * kx && tagDims(m + 1).H <= maxH * ky) m++;
+  return m;
+}
 function heartIcon(x, y) { vctx.fillStyle = '#e8341c'; vctx.fillRect(x, y + 1, 3, 3); vctx.fillRect(x + 4, y + 1, 3, 3); vctx.fillRect(x + 1, y, 1, 1); vctx.fillRect(x + 5, y, 1, 1); vctx.fillRect(x + 1, y + 4, 5, 1); vctx.fillRect(x + 2, y + 5, 3, 1); vctx.fillRect(x + 3, y + 6, 1, 1); }
-function drawPanel() {
-  const x0 = PX0, tl = tagLow(minMod);
-  vctx.drawImage(panelCanvas, x0, 0);
-  heartIcon(x0 + 8, 8);
-  txt(vctx, Math.max(0, Math.ceil(G.lives)), x0 + 18, 6, 2, G.leakT > 0 ? '#ff6060' : '#ffffff', 'left', null);
-  txt(vctx, '$' + Math.floor(G.cash), x0 + 8, 22, 1, '#60ff70', 'left', null);
-  txt(vctx, 'ROUND ' + G.round + '/' + G.D.rounds, PX0 + PW - 8, roundY(), 1, '#9fe0a8', 'right', null);
-  tag(MC.pause, PX0 + PW - 6 - tl.w / 2, 3 + tl.h / 2, '#606060', () => { if (G.mode === 'play') { G.prevMode = 'play'; setMode('paused'); } }, 'PAUSE');
-  let y = roundY() + 17;
-  const gx = x0 + 5 + tl.w / 2, gy = y + tl.h / 2;
-  tag(MC.go, gx, gy, G.wave ? '#806020' : '#2a8a2a', goPressed, 'GO');
-  const lx = x0 + 9 + tl.w;
-  if (G.wave) { txt(vctx, 'SPEED ' + G.speed + 'X', lx, y + 1, 1, '#ffd040'); txt(vctx, 'SCAN FOR ' + (G.speed % 3 + 1) + 'X', lx, y + 10, 1, '#a09888'); }
-  else { txt(vctx, 'START ROUND ' + (G.round + 1), lx, y + 1, 1, '#60ff70'); txt(vctx, G.auto ? 'AUTO-START ON' : 'SCAN TO GO', lx, y + 10, 1, '#a09888'); }
-  y += Math.max(tl.h, 18) + 4;
-  vctx.fillStyle = '#3a3e44'; vctx.fillRect(x0 + 4, y, PW - 8, 1);
-  y += 4;
-  const t = G.sel === null ? null : towers[G.sel];
-  if (G.sel === null) drawPanelIdle(y);
-  else if (!t) drawBuildMenu(y);
-  else drawTowerMenu(t, y);
+function openPause() { if (G.mode === 'play') { G.prevMode = 'play'; setMode('paused'); } }
+// The status bar. PAUSE sits at the far left and GO at the far right, so they are as far apart as they can be.
+// live = false draws grey boxes instead of barcodes (while a menu or the pause screen is on top).
+function drawHud(live) {
+  vctx.fillStyle = '#0b120e'; vctx.fillRect(0, 0, W, HUD);
+  vctx.fillStyle = '#2a4a30'; vctx.fillRect(0, HUD - 1, W, 1);
+  const tp = tagLow(minMod), gm = fitMod(90, HUD - 6), tg = tagLow(gm), cy = HUD / 2;
+  if (live) {
+    tag(MC.pause, 4 + tp.w / 2, cy, '#606060', openPause, 'PAUSE');
+    tag(MC.go, W - 4 - tg.w / 2, cy, G.wave ? '#806020' : '#2a8a2a', goPressed, 'GO', gm);
+  } else {
+    vctx.fillStyle = '#26282c'; vctx.fillRect(4, cy - tp.h / 2, tp.w, tp.h); vctx.fillRect(W - 4 - tg.w, cy - tg.h / 2, tg.w, tg.h);
+  }
+  txt(vctx, 'PAUSE', 8 + tp.w, cy - 3, 1, '#a09888');
+  const gx = W - 8 - tg.w, x0 = 46 + tp.w, w = gx - 100 - x0, r = G.wave ? G.round : G.round + 1;
+  txt(vctx, 'ROUND ' + r + '/' + G.D.rounds, gx, 4, 1, G.wave ? '#ffd040' : '#60ff70', 'right');
+  if (G.wave) { txt(vctx, 'SPEED ' + G.speed + 'X', gx, 14, 1, '#e8e0d0', 'right'); txt(vctx, 'SCAN GO FOR ' + (G.speed % 3 + 1) + 'X', gx, 24, 1, '#a09888', 'right'); }
+  else { txt(vctx, 'SCAN GO TO START', gx, 14, 1, '#e8e0d0', 'right'); txt(vctx, G.auto ? 'AUTO-START ON' : 'THE NEXT ROUND', gx, 24, 1, '#a09888', 'right'); }
+  heartIcon(x0, 7);
+  const lives = String(Math.max(0, Math.ceil(G.lives)));
+  txt(vctx, lives, x0 + 10, 3, 2, G.leakT > 0 ? '#ff6060' : '#ffffff', 'left', null);
+  txt(vctx, '$' + Math.floor(G.cash), x0 + 22 + lives.length * 12, 3, 2, '#60ff70', 'left', null);
+  const sum = wrap((G.wave ? 'NOW: ' : 'NEXT: ') + roundSummary(r), w), tip = roundTip(r), m = lastMsg();
+  let l2 = sum[0], c2 = '#c8c0b0', l3 = tip || sum[1] || '', c3 = tip ? '#ff7a5a' : '#c8c0b0';
+  if (m) {
+    const mw = wrap(m.text, w);
+    if (mw.length > 1) { l2 = mw[0]; l3 = mw[1]; c3 = m.col; } else { l3 = l2; c3 = c2; l2 = mw[0]; }
+    c2 = m.col;
+  }
+  txt(vctx, l2, x0, 20, 1, c2);
+  txt(vctx, l3, x0, 28, 1, c3);
 }
-function drawPanelIdle(y) {
-  const x0 = PX0 + 6, w = PW - 12;
-  for (const l of wrap('SCAN A PAD ON THE MAP TO BUILD A SCANNER. SCAN A SCANNER TO UPGRADE OR SELL IT.', w)) { txt(vctx, l, x0, y, 1, '#d8d0c0'); y += 9; }
-  y += 6;
-  txt(vctx, G.wave ? 'THIS ROUND:' : 'NEXT ROUND:', x0, y, 1, '#ffb020'); y += 10;
-  for (const l of roundSummary(G.wave ? G.round : G.round + 1).slice(0, 5)) { for (const ll of wrap(l, w)) { txt(vctx, ll, x0, y, 1, '#c8c0b0'); y += 9; } }
-  const tip = roundTip(G.wave ? G.round : G.round + 1);
-  if (tip) { y += 3; for (const l of wrap(tip, w)) { txt(vctx, l, x0, y, 1, '#ff7a5a'); y += 9; } }
-  y += 6;
-  txt(vctx, 'SCORE ' + score(), x0, y, 1, '#9fe0a8'); y += 9;
-  if (G.player) txt(vctx, 'PLAYER ' + G.player, x0, y, 1, '#a09888');
-}
-function drawBuildMenu(y) {
-  const tl = tagLow(minMod), x0 = PX0 + 5, rowH = Math.min(Math.max(tl.h, 16) + 4, (H - y - 14 - tl.h) / 7);
-  txt(vctx, 'BUILD ON PAD ' + (G.sel + 1) + ':', x0 + 1, y, 1, '#ffb020'); y += 10;
-  TOWERS.forEach((T, k) => {
-    const cy = y + rowH / 2 - 1, cost = price(T.cost), ok = G.cash >= cost;
-    tag(MC.build[k], x0 + tl.w / 2, cy, ok ? T.col : '#5a5a5a', () => build(k), T.name);
-    const tx = x0 + tl.w + 4;
-    vctx.globalAlpha = ok ? 1 : .45;
-    vctx.drawImage(TSPR[T.id], tx, Math.round(cy - 8));
-    txt(vctx, T.name, tx + 18, cy - 8, 1, '#ffffff');
-    txt(vctx, '$' + cost, tx + 18, cy + 1, 1, ok ? '#60ff70' : '#ff6060');
-    vctx.globalAlpha = 1;
-    y += rowH;
+function drawSlotTags() {
+  const m = fitMod(66, 24), tl = tagLow(m);
+  SLOTS.forEach(([x, y, up], i) => {
+    const t = towers[i];
+    tag(MC.slot[i], x, up ? y - 10 - tl.h / 2 : y + 10 + tl.h / 2, t ? TOWERS[t.k].col : '#4a7a50', () => selectSlot(i), 'PAD' + (i + 1), m);
   });
-  tag(MC.close, x0 + tl.w / 2, y + tl.h / 2 + 1, '#606060', () => { G.sel = null; }, 'CANCEL');
-  txt(vctx, 'CANCEL', x0 + tl.w + 4, y + tl.h / 2 - 3, 1, '#c8c0b0');
-}
-function drawTowerMenu(t, y) {
-  const T = TOWERS[t.k], tl = tagLow(minMod), x0 = PX0 + 5, lx = x0 + tl.w + 4, lw = PX0 + PW - 4 - lx;
-  vctx.drawImage(TSPR[T.id], x0, y - 1);
-  txt(vctx, T.name, x0 + 18, y, 1, T.col);
-  txt(vctx, 'TIER ' + t.a + '-' + t.b + '  SCANNED ' + t.pops, x0 + 18, y + 9, 1, '#a09888');
-  y += 21;
-  for (let path = 0; path < 2; path++) {
-    const why = canUpgrade(t, path), U = why ? null : T.up[path][path ? t.b : t.a], rowH = Math.max(tl.h, 33) + 3, cy = y + tl.h / 2;
-    const col = path ? '#4a90ff' : '#ffa424';
-    if (U) {
-      const cost = price(U[1]), ok = G.cash >= cost;
-      tag(path ? MC.upB : MC.upA, x0 + tl.w / 2, cy, ok ? col : '#5a5a5a', () => upgrade(path), 'UP' + path);
-      txt(vctx, U[0], lx, y, 1, col);
-      txt(vctx, '$' + cost, lx, y + 8, 1, ok ? '#60ff70' : '#ff6060');
-      wrap(U[2], lw).slice(0, 2).forEach((l, i) => txt(vctx, l, lx, y + 16 + i * 8, 1, '#a09888'));
-    } else {
-      vctx.fillStyle = '#26282c'; vctx.fillRect(x0, y, tl.w, tl.h);
-      txt(vctx, why === 'MAXED' ? 'PATH MAXED' : 'PATH LOCKED', lx, y + 2, 1, col);
-      txt(vctx, why === 'MAXED' ? '' : 'MAX ONE PATH', lx, y + 10, 1, '#706860');
-    }
-    y += rowH;
-  }
-  const rowH = Math.max(tl.h, 10) + 3;
-  if (['support', 'income', 'pulse', 'aura'].indexOf(t.st.kind) < 0) {
-    tag(MC.target, x0 + tl.w / 2, y + tl.h / 2, '#806020', () => { t.mode = (t.mode + 1) % TMODES.length; }, 'TARGET');
-    txt(vctx, 'TARGET: ' + TMODES[t.mode], lx, y + tl.h / 2 - 3, 1, '#ffd040');
-    y += rowH;
-  }
-  tag(MC.sell, x0 + tl.w / 2, y + tl.h / 2, '#a03030', sell, 'SELL');
-  txt(vctx, 'SELL FOR $' + Math.floor(t.spent * .7), lx, y + tl.h / 2 - 3, 1, '#ff9090');
-  y += rowH;
-  tag(MC.close, x0 + tl.w / 2, y + tl.h / 2, '#606060', () => { G.sel = null; }, 'CLOSE');
-  txt(vctx, 'CLOSE', lx, y + tl.h / 2 - 3, 1, '#c8c0b0');
 }
 function goPressed() {
   if (G.mode !== 'play') return;
   if (!G.wave) startRound();
   else { G.speed = G.speed % 3 + 1; snd('menu'); }
 }
-function drawSlotTags() {
-  // Barcodes wider than the pad spacing (?module / ?digits on a small screen) would cover each other, so every
-  // other pad's barcode drops by 60% of its height: each one keeps a clear band across its full width.
-  const tl = tagLow(minMod), crowded = tl.w > 71;
-  SLOTS.forEach(([x, y], i) => {
-    const t = towers[i], col = G.sel === i ? (((G.t * 4) | 0) & 1 ? '#ffe000' : '#c08000') : t ? TOWERS[t.k].col : '#4a7a50';
-    const dy = crowded && STAGGER.indexOf(i) >= 0 ? tl.h * .6 : 0;
-    tag(MC.slot[i], x, y + 10 + dy + tl.h / 2, col, () => selectSlot(i), 'PAD' + (i + 1));
+function card(x, y, w, h, col) {
+  vctx.fillStyle = '#16181b'; vctx.fillRect(x, y, w, h);
+  vctx.fillStyle = col; vctx.fillRect(x, y, w, 1); vctx.fillRect(x, y + h - 1, w, 1); vctx.fillRect(x, y, 1, h); vctx.fillRect(x + w - 1, y, 1, h);
+}
+function menuTop() { dim(.86); vctx.fillStyle = '#0b0c0e'; vctx.fillRect(0, 0, W, 33); }  // solid header so the status bar doesn't show through
+function menuFooter() {
+  const m = lastMsg();
+  txt(vctx, m ? m.text : 'THE STORE WAITS WHILE THIS MENU IS OPEN', W / 2, H - 9, 1, m ? m.col : '#706860', 'center');
+}
+// Menus cover the whole screen and hold only a few barcodes, spread out, so the scanner can't catch the wrong one.
+function drawBuildMenu() {
+  menuTop();
+  txt(vctx, 'BUILD ON PAD ' + (G.sel + 1), 8, 6, 2, '#ffb020');
+  txt(vctx, '$' + Math.floor(G.cash), W - 8, 6, 2, '#60ff70', 'right');
+  txt(vctx, 'SCAN THE SCANNER YOU WANT TO BUILD', W / 2, 24, 1, '#a09888', 'center');
+  const cw = 116, ch = 108, gap = (W - 4 * cw) / 5, m = fitMod(81, 27), tl = tagLow(m);
+  for (let k = 0; k < 8; k++) {
+    const x = Math.round(gap + (k % 4) * (cw + gap)), y = 34 + (k >> 2) * (ch + 6), cx = x + cw / 2, by = y + ch - 5 - tl.h / 2;
+    if (k === 7) {
+      card(x, y, cw, ch, '#606060');
+      txt(vctx, 'CANCEL', cx, y + 8, 2, '#c8c0b0', 'center');
+      txt(vctx, 'BACK TO THE MAP', cx, y + 30, 1, '#a09888', 'center');
+      tag(MC.close, cx, by, '#606060', () => { G.sel = null; }, 'CANCEL', m);
+      continue;
+    }
+    const T = TOWERS[k], cost = price(T.cost), ok = G.cash >= cost;
+    card(x, y, cw, ch, ok ? T.col : '#3a3e44');
+    txt(vctx, T.name, cx, y + 5, 1, ok ? '#ffffff' : '#8a8478', 'center');
+    vctx.globalAlpha = ok ? 1 : .45; vctx.drawImage(TSPR[T.id], Math.round(cx - 16), y + 15, 32, 32); vctx.globalAlpha = 1;
+    txt(vctx, '$' + cost, cx, y + 50, 1, ok ? '#60ff70' : '#ff6060', 'center');
+    wrap(T.info, cw - 8).slice(0, 2).forEach((l, i) => txt(vctx, l, cx, y + 60 + i * 8, 1, '#a09888', 'center'));
+    tag(MC.build[k], cx, by, ok ? T.col : '#5a5a5a', () => build(k), T.name, m);
+  }
+  menuFooter();
+}
+function drawTowerMenu(t) {
+  const T = TOWERS[t.k];
+  menuTop();
+  vctx.drawImage(TSPR[T.id], 8, 5);
+  txt(vctx, T.name, 28, 6, 2, T.col);
+  txt(vctx, '$' + Math.floor(G.cash), W - 8, 6, 2, '#60ff70', 'right');
+  const earns = t.st.kind === 'income' ? '   EARNS $' + Math.round(t.st.income * (t.st.incMul || 1)) + ' A ROUND' : '';
+  txt(vctx, 'PAD ' + (G.sel + 1) + '   TIER ' + t.a + '-' + t.b + '   SCANNED ' + t.pops + earns, 28, 24, 1, '#a09888');
+  // the two upgrade paths, side by side
+  const um = fitMod(120, 36), ul = tagLow(um), uw = 234, uh = 128;
+  for (let path = 0; path < 2; path++) {
+    const x = 4 + path * (uw + 4), y = 35, cx = x + uw / 2, col = path ? '#4a90ff' : '#ffa424', tier = path ? t.b : t.a;
+    const why = canUpgrade(t, path), U = why ? null : T.up[path][tier];
+    card(x, y, uw, uh, U ? col : '#3a3e44');
+    txt(vctx, 'PATH ' + (path + 1), x + 6, y + 5, 1, col);
+    for (let i = 0; i < 3; i++) { vctx.fillStyle = i < tier ? col : '#33363b'; vctx.fillRect(x + uw - 34 + i * 10, y + 5, 8, 6); }
+    if (U) {
+      const cost = price(U[1]), ok = G.cash >= cost;
+      txt(vctx, U[0], cx, y + 16, fitSc(U[0], 2, uw - 12), '#ffffff', 'center');
+      txt(vctx, '$' + cost, cx, y + 34, 1, ok ? '#60ff70' : '#ff6060', 'center');
+      wrap(U[2], uw - 12).slice(0, 2).forEach((l, i) => txt(vctx, l, cx, y + 44 + i * 8, 1, '#a09888', 'center'));
+      tag(path ? MC.upB : MC.upA, cx, y + uh - 5 - ul.h / 2, ok ? col : '#5a5a5a', () => upgrade(path), 'UP' + path, um);
+    } else {
+      txt(vctx, why === 'MAXED' ? 'PATH MAXED' : 'PATH LOCKED', cx, y + 40, 2, '#8a8478', 'center');
+      txt(vctx, why === 'MAXED' ? 'ALL 3 UPGRADES BOUGHT' : 'TIERS CAN BE 3+1 OR 2+2 AT MOST', cx, y + 60, 1, '#706860', 'center');
+    }
+  }
+  // target, close and sell, spread across the bottom
+  const bm = fitMod(110, 40), bl = tagLow(bm), bw = 157, bh = 88, by = 168;
+  const aims = ['support', 'income', 'pulse', 'aura'].indexOf(t.st.kind) < 0;
+  const cells = [
+    aims ? ['TARGET', 'NOW: ' + TMODES[t.mode], 'SCAN TO CHANGE', '#806020', MC.target, () => { t.mode = (t.mode + 1) % TMODES.length; }]
+      : ['TARGET', "THIS SCANNER", "DOESN'T AIM", null],
+    ['CLOSE', 'BACK TO THE MAP', '', '#606060', MC.close, () => { G.sel = null; }],
+    ['SELL', 'GET $' + Math.floor(t.spent * .7), 'FOR THIS SCANNER', '#a03030', MC.sell, sell],
+  ];
+  cells.forEach(([label, s1, s2, col, code, act], i) => {
+    const x = 4 + i * (bw + 4), cx = x + bw / 2;
+    card(x, by, bw, bh, col || '#3a3e44');
+    txt(vctx, label, cx, by + 6, 2, col ? '#ffffff' : '#8a8478', 'center');
+    txt(vctx, s1, cx, by + 23, 1, i === 0 && col ? '#ffd040' : i === 2 ? '#ff9090' : '#a09888', 'center');
+    txt(vctx, s2, cx, by + 31, 1, '#706860', 'center');
+    if (col) tag(code, cx, by + bh - 5 - bl.h / 2, col, act, label, bm);
   });
+  menuFooter();
 }
 
 // ---------- menus ----------
@@ -990,7 +1006,7 @@ const TIPS = [
   'TIP: EACH SCANNER HAS TWO UPGRADE PATHS. YOU CAN ONLY MAX ONE.',
 ];
 function drawTitle() {
-  vctx.drawImage(mapCanvas, 0, 0); vctx.drawImage(panelCanvas, PX0, 0);
+  vctx.drawImage(mapCanvas, 0, 0);
   dim(.62);
   let y = logo(8);
   for (const l of wrap('THE GROCERIES CAME ALIVE AND RIDE THE BELT TO THE EXIT WITHOUT PAYING. BUILD SCANNERS AND SCAN THEM ALL!', W - 30)) { txt(vctx, l, W / 2, y, 1, '#e8e0d0', 'center'); y += 9; }
@@ -1012,7 +1028,7 @@ function drawTitle() {
   miniBoard(y, labelY - 4, '');
 }
 function drawWho() {
-  vctx.drawImage(mapCanvas, 0, 0); vctx.drawImage(panelCanvas, PX0, 0); dim(.7);
+  vctx.drawImage(mapCanvas, 0, 0); dim(.7);
   const t = "WHO'S PLAYING?", D = DIFFS[G.pendingDiff];
   txt(vctx, t, W / 2, 6, fitSc(t, 3, W - 10), '#9fe0a8', 'center');
   txt(vctx, 'SCAN YOUR NAME  -  ' + D.name + ', POINTS X' + D.pts, W / 2, 29, 1, '#e8e0d0', 'center');
@@ -1026,27 +1042,28 @@ function drawWho() {
   button(MC.back, W * .7, by, minMod, 'BACK', toTitle, null, '#606060');
 }
 function drawName() {
-  vctx.drawImage(mapCanvas, 0, 0); vctx.drawImage(panelCanvas, PX0, 0); dim(.75);
+  vctx.drawImage(mapCanvas, 0, 0); dim(.75);
   txt(vctx, 'NEW PLAYER', W / 2, 5, fitSc('NEW PLAYER', 3, W - 110), '#9fe0a8', 'center');
   txt(vctx, 'SCAN THE LETTERS OF YOUR NAME, THEN DONE', W / 2, 28, 1, '#e8e0d0', 'center');
   vctx.fillStyle = 'rgba(0,0,0,.7)'; vctx.fillRect(W / 2 - 70, 38, 140, 20);
   txt(vctx, G.nameBuf + (((G.t * 2) | 0) & 1 ? '_' : ' '), W / 2, 41, 2, '#ffffff', 'center');
   if (G.nameErr > G.t) txt(vctx, 'USE AT LEAST 2 LETTERS', W / 2, 61, 1, '#ff6060', 'center');
-  const tl = tagLow(minMod), cw = (W - 8) / 7, rowH = Math.max(15 + tl.h + 3, 30), top = Math.min(72, H - 4 * rowH - 2);
+  // 5 columns with the letter beside its barcode: wide gaps between barcodes, so neighbours don't get scanned by mistake
+  const tl = tagLow(minMod), cw = (W - 4) / 5, top = 66, rowH = (H - top - 2) / 6;
   for (let i = 0; i < 28; i++) {
-    const cx = 4 + cw * (i % 7 + .5), ly = top + Math.floor(i / 7) * rowH;
+    const x = 2 + cw * (i % 5), cy = top + Math.floor(i / 5) * rowH + rowH / 2, tx = x + cw - 4 - tl.w / 2;
     const L = i < 26 ? String.fromCharCode(65 + i) : i === 26 ? 'DEL' : 'DONE';
-    txt(vctx, L, cx, ly, 2, i < 26 ? '#ffffff' : i === 26 ? '#ffc060' : '#60ff70', 'center');
+    txt(vctx, L, tx - tl.w / 2 - 4, cy - (i < 26 ? 7 : 3), i < 26 ? 2 : 1, i < 26 ? '#ffffff' : i === 26 ? '#ffc060' : '#60ff70', 'right');
     const act = i < 26 ? () => { if (G.nameBuf.length < 10) G.nameBuf += L; else snd('buzz'); }
       : i === 26 ? () => { G.nameBuf = G.nameBuf.slice(0, -1); }
       : () => { if (G.nameBuf.length < 2) { G.nameErr = G.t + 2; snd('buzz'); } else choosePlayer(G.nameBuf); };
-    tag(i < 26 ? MC.letter[i] : i === 26 ? MC.del : MC.done, cx, ly + 15 + tl.h / 2, i < 26 ? '#2a8a2a' : i === 26 ? '#806020' : '#2a8a2a', act, L);
+    tag(i < 26 ? MC.letter[i] : i === 26 ? MC.del : MC.done, tx, cy, i < 26 ? '#2a8a2a' : i === 26 ? '#806020' : '#2a8a2a', act, L);
   }
   tag(MC.back, 5 + tl.w / 2, 4 + tl.h / 2, '#606060', () => (recentPlayers().length ? setMode('who') : toTitle()), 'BACK');
   txt(vctx, 'BACK', 5 + tl.w / 2, 6 + tl.h, 1, '#c8c0b0', 'center');
 }
 function drawBoard() {
-  vctx.drawImage(mapCanvas, 0, 0); vctx.drawImage(panelCanvas, PX0, 0); dim(.78);
+  vctx.drawImage(mapCanvas, 0, 0); dim(.78);
   txt(vctx, 'LEADERBOARD', W / 2, 5, fitSc('LEADERBOARD', 3, W - 10), '#9fe0a8', 'center');
   const wk = G.boardTab === 'week';
   txt(vctx, wk ? 'THIS WEEK - SINCE MONDAY' : "ALL TIME - EACH PLAYER'S BEST GAME", W / 2, 28, 1, '#e8e0d0', 'center');
@@ -1068,6 +1085,7 @@ function drawPaused() {
   button(MC.restart, W * .7, y1, mod, 'RESTART', () => { if (G.round > 0) recordGame(); newGame(G.diff); }, null, '#806020');
   button(MC.auto, W * .3, y2, mod, G.auto ? 'AUTO-START: ON' : 'AUTO-START: OFF', () => { G.auto = !G.auto; G.autoT = G.auto && !G.wave && G.round > 0 ? 2.5 : 0; }, 'STARTS ROUNDS BY ITSELF', '#4a6a8a');
   button(MC.quit, W * .7, y2, mod, 'QUIT', quitGame, 'SAVES YOUR SCORE', '#a03030');
+  txt(vctx, (G.player ? 'PLAYER ' + G.player + '   ' : '') + 'SCORE ' + score(), W / 2, H - 26, 1, '#9fe0a8', 'center');
   txt(vctx, 'OR PRESS ESC TO RESUME', W / 2, H - 14, 1, '#a09888', 'center');
 }
 function drawWon() {
@@ -1110,16 +1128,18 @@ function draw() {
     if (G.shake > 0) vctx.translate(Math.round(rand(-1.5, 1.5)), Math.round(rand(-1.5, 1.5)));
     drawMap();
     vctx.restore();
-    drawPanel();
-    if (m === 'play') drawSlotTags();
-    else { octx.clearRect(0, 0, over.width, over.height); G.targets.length = 0; }  // the menu on top is the only thing to scan
+    // only the screen on top gets barcodes: the map's, a build/upgrade menu's, or the pause/win screen's
+    const menu = m === 'play' && G.sel !== null;
+    drawHud(m === 'play' && !menu);
+    if (menu) { if (towers[G.sel]) drawTowerMenu(towers[G.sel]); else drawBuildMenu(); }
+    else if (m === 'play') drawSlotTags();
     if (m === 'paused') drawPaused(); else if (m === 'won') drawWon();
   } else if (m === 'title') drawTitle();
   else if (m === 'who') drawWho();
   else if (m === 'name') drawName();
   else if (m === 'board') drawBoard();
   else if (m === 'over') drawOver();
-  if (DEBUG) txt(vctx, fps + ' FPS ' + msAvg + 'MS ' + items.length + ' ITEMS', MAPW - 3, H - 9, 1, '#40ff40', 'right');
+  if (DEBUG) txt(vctx, fps + ' FPS ' + msAvg + 'MS ' + items.length + ' ITEMS', W - 3, H - 9, 1, '#40ff40', 'right');
 }
 
 // ---------- scanner input ----------
@@ -1163,7 +1183,8 @@ document.addEventListener('keydown', e => {
   S.unlock();
   const k = e.keyCode || e.which || 0;
   if (e.key === 'Escape' || k === 27) {
-    if (G.mode === 'play') { G.prevMode = 'play'; setMode('paused'); }
+    if (G.mode === 'play' && G.sel !== null) G.sel = null;
+    else if (G.mode === 'play') { G.prevMode = 'play'; setMode('paused'); }
     else if (G.mode === 'paused') setMode('play');
     else if (G.mode === 'title') toArcade();
     else if (G.mode === 'name') { if (recentPlayers().length) setMode('who'); else toTitle(); }
@@ -1303,17 +1324,14 @@ function recordGame() {
 function resize() {
   const cw = Math.max(1, window.innerWidth), ch = Math.max(1, window.innerHeight);
   dpr = window.devicePixelRatio || 1;
-  W = clamp(Math.round(H * cw / ch), 480, 640) & ~1;
-  PX0 = MAPW; PW = W - MAPW;
   view.width = W; view.height = H;
   vctx.imageSmoothingEnabled = false;
-  // Square pixels: scale evenly and letterbox what is left (4:3 screens get bars above and below).
+  // Square pixels: scale evenly and letterbox what is left (bars above and below on 4:3 and 16:10 screens).
   const k = Math.min(cw / W, ch / H), vw = W * k, vh = H * k, left = Math.round((cw - vw) / 2), top = Math.round((ch - vh) / 2);
   view.style.width = vw + 'px'; view.style.height = vh + 'px'; view.style.left = left + 'px'; view.style.top = top + 'px';
   over.width = Math.round(cw * dpr); over.height = Math.round(ch * dpr);
   kx = ky = k * dpr; OX = left * dpr; OY = top * dpr;
   minMod = Math.max(1, Math.round(MOD_CSS * dpr));
-  buildPanel();
 }
 let last = performance.now(), fps = 0, fpsN = 0, fpsT = 0, msAvg = 0, msAcc = 0;
 function loop(now) {

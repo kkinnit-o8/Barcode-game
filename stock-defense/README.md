@@ -9,16 +9,27 @@ Like every game on the site, it is a single `index.html` with no libraries, font
 ## How to play
 
 1. Scan **EASY**, **NORMAL** or **HARD** on the title screen, then scan your name (or **NEW PLAYER** and spell it). Scan **ALL GAMES** or press Esc to go back to the arcade.
-2. Every empty pad on the map has a barcode under it. Scan a pad, then scan the scanner you want to build there from the list on the right.
-3. Scan **GO** to send the next round down the belt. During a round, scanning **GO** again switches between 1×, 2× and 3× speed.
+2. Each of the 12 pads on the map has a barcode next to it. Scan an empty pad to open the build menu, then scan the scanner you want to build there.
+3. Scan **GO** (top right) to send the next round down the belt. During a round, scanning **GO** again switches between 1×, 2× and 3× speed.
 4. Each scan peels one layer off an item: an energy drink becomes chips, chips become soda, and so on down to gum. Every layer is worth $1. Upgraded scanners that do more damage keep going: a 7-damage label that pops a twin pack also hits both energy drinks inside.
 5. Anything that reaches the **EXIT** costs lives, one per layer it still has. The game ends when you run out of lives.
-6. Scan a scanner you already built to upgrade it, change what it aims at (**TARGET**: first, last, strong or close), or **SELL** it for 70% of what you spent.
+6. Scan the pad of a scanner you already built to open its menu. From there you can buy either upgrade, change what it aims at (**TARGET**: first, last, strong or close), **SELL** it for 70% of what you spent, or **CLOSE** the menu.
 7. You get $100 + the round number after every round. Survive all the rounds to win, then keep going in **FREEPLAY**.
 
-The panel on the right always shows what the next round brings, with a warning when it has items that need a special scanner.
+The build and upgrade menus fill the screen and the store stands still while one is open, so take your time. Esc also closes them.
 
-Scan **PAUSE** (top right) to stop at any time. The pause menu also has **RESTART**, **QUIT** and **AUTO-START**, which starts each round by itself after a short break.
+The status bar at the top shows your lives, cash and round, and what the next round brings. A red warning appears there when the round has items that need a special scanner.
+
+Scan **PAUSE** (top left) to stop at any time. The pause menu also has **RESTART**, **QUIT** and **AUTO-START**, which starts each round by itself after a short break.
+
+### Why the barcodes are spread out
+
+A handheld scanner reads whatever barcode it sees first, so barcodes that sit close together are easy to mix up. The game keeps them apart:
+
+- **Map:** pads in a row are 110 units apart (about 8 cm on a 15" 1366×768 screen).
+- **Menus:** each menu holds at most 8 barcodes, spread over the whole screen and drawn bigger when the screen has room.
+- **Status bar:** PAUSE and GO sit at opposite ends.
+- **Name screen:** letters are in 5 columns, with each letter next to its barcode.
 
 ## The groceries
 
@@ -94,5 +105,3 @@ Players are shared with the other games on the site, so the name you picked in H
 | `?digits=6` | `4` | The scanner rejects short Code 128 barcodes (minimum-length setting). Must be an even number from 4 to 12. |
 | `?nofs` | off | You don't want fullscreen on start. |
 | `?debug` | off | You want to see FPS, frame time and the digits under each barcode. |
-
-With `?module` or `?digits` on a smaller screen, the pad barcodes get wider than the space between pads, so every other one moves down a little. They overlap slightly but each one stays readable.
