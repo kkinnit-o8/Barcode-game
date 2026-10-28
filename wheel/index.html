@@ -83,9 +83,9 @@ button[hidden] { display: none; }
 #via { margin-left: auto; }
 #gear { padding: 4px 12px 6px; font-size: 24px; line-height: 1; }
 #stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; pointer-events: none; position: relative; z-index: 1; }
-#wheel { width: min(62vw, 42vh); height: min(62vw, 42vh); }
+#wheel { width: min(calc(var(--w, 100vw) * .62), calc(var(--h, 100vh) * .42)); height: min(calc(var(--w, 100vw) * .62), calc(var(--h, 100vh) * .42)); }
 #wheel svg { width: 100%; height: 100%; display: block; }
-#meter { width: min(80vw, 380px); height: 10px; border-radius: 5px; background: #000; border: 1px solid var(--line); position: relative; }
+#meter { width: min(calc(var(--w, 100vw) * .8), 380px); height: 10px; border-radius: 5px; background: #000; border: 1px solid var(--line); position: relative; }
 #meter::after { content: ""; position: absolute; left: 50%; top: -4px; width: 2px; height: 18px; background: var(--muted); }
 #meterI { position: absolute; top: -4px; left: 50%; width: 10px; height: 18px; margin-left: -5px; border-radius: 3px; background: var(--accent); z-index: 1; }
 #side { display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; position: relative; z-index: 1; padding-top: 6px; }
@@ -102,15 +102,19 @@ button[hidden] { display: none; }
 .pad.on { background: rgba(255,164,36,.12); color: rgba(255,164,36,.5); }
 #padL { left: 0; } #padR { right: 0; }
 #drive.touch .pad { display: flex; }
-@media (orientation: landscape) {
-  #drive.on { display: grid; grid-template-columns: 1fr minmax(220px, 40%); grid-template-rows: auto 1fr auto; column-gap: 16px; }
-  #drive header { grid-column: 1 / -1; }
-  #stage { grid-column: 1; grid-row: 2 / 4; }
-  #side { grid-column: 2; grid-row: 2; justify-content: center; }
-  #tilt { grid-column: 2; grid-row: 3; }
-  #wheel { width: min(46vw, 62vh); height: min(46vw, 62vh); }
-  #actions { flex-direction: column; }
-}
+#turn { display: none; flex-direction: column; align-items: center; gap: 12px; text-align: center; font-weight: 700; font-size: 22px; color: #ffe070; }
+#turn svg { width: 80px; height: 80px; animation: turn 2.2s ease-in-out infinite; }
+@keyframes turn { 0%, 20% { transform: rotate(0deg); } 55%, 100% { transform: rotate(90deg); } }
+#drive.upright #turn { display: flex; }
+#drive.upright #wheel, #drive.upright #meter { display: none; }
+/* landscape: the phone is held sideways (the screen may be turned by the script, so this is a class, not a media query) */
+#drive.on.land { display: grid; grid-template-columns: 1fr minmax(220px, 40%); grid-template-rows: auto 1fr auto; column-gap: 16px; }
+#drive.land header { grid-column: 1 / -1; }
+#drive.land #stage { grid-column: 1; grid-row: 2 / 4; }
+#drive.land #side { grid-column: 2; grid-row: 2; justify-content: center; }
+#drive.land #tilt { grid-column: 2; grid-row: 3; }
+#drive.land #wheel { width: min(calc(var(--w, 100vw) * .46), calc(var(--h, 100vh) * .62)); height: min(calc(var(--w, 100vw) * .46), calc(var(--h, 100vh) * .62)); }
+#drive.land #actions { flex-direction: column; }
 
 /* settings */
 #sheet { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 10; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -128,7 +132,7 @@ button[hidden] { display: none; }
 <section id="setup">
   <div class="col">
     <h1 class="logo" id="logo">PHONE WHEEL</h1>
-    <p class="muted" style="text-align:center">Steer RUSH HOUR on the POS screen with your phone.</p>
+    <p class="muted" style="text-align:center">Steer RUSH HOUR on the POS screen with your phone. Hold it sideways like a steering wheel.</p>
     <label class="field">YOUR NAME
       <input id="name" maxlength="10" autocomplete="nickname" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="NAME">
     </label>
@@ -170,6 +174,7 @@ button[hidden] { display: none; }
       <rect x="-6" y="-99" width="12" height="22" rx="3" fill="#ffa424"/>
     </g></svg></div>
     <div id="meter"><i id="meterI"></i></div>
+    <div id="turn"><svg viewBox="0 0 60 100" aria-hidden="true"><rect x="5" y="5" width="50" height="90" rx="9" fill="none" stroke="#ffa424" stroke-width="6"/><rect x="22" y="82" width="16" height="5" rx="2" fill="#ffa424"/></svg>TURN YOUR PHONE SIDEWAYS<span class="muted">and hold it like a steering wheel</span></div>
   </div>
   <div id="side">
     <div id="stats"><b id="spd">0</b> KM/H &middot; <b id="dst">0.00</b> KM<span id="lives"></span></div>
@@ -178,19 +183,19 @@ button[hidden] { display: none; }
   </div>
   <button id="tilt" class="go" hidden>TAP TO TURN ON TILT STEERING</button>
   <div class="pad" id="padL">&#9664;</div><div class="pad" id="padR">&#9654;</div>
+  <div id="sheet" hidden>
+    <div class="box">
+      <h2>SETTINGS</h2>
+      <div class="row">STEERING<div class="seg" data-opt="mode"><button data-v="tilt">TILT THE PHONE</button><button data-v="touch">TOUCH LEFT / RIGHT</button></div></div>
+      <div class="row">SENSITIVITY<div class="seg" data-opt="sens"><button data-v="low">LOW</button><button data-v="mid">MEDIUM</button><button data-v="high">HIGH</button></div></div>
+      <div class="row">FLIP STEERING<div class="seg" data-opt="flip"><button data-v="0">NORMAL</button><button data-v="1">FLIPPED</button></div></div>
+      <div class="row">STRAIGHT AHEAD<div class="seg"><button id="center">HOW I HOLD IT NOW</button><button id="uncenter">LEVEL</button></div></div>
+      <p class="muted" id="tiltInfo"></p>
+      <div class="end"><button id="leave" class="warn">DISCONNECT</button><button id="close" class="go">DONE</button></div>
+    </div>
+  </div>
 </section>
 
-<div id="sheet" hidden>
-  <div class="box">
-    <h2>SETTINGS</h2>
-    <div class="row">STEERING<div class="seg" data-opt="mode"><button data-v="tilt">TILT THE PHONE</button><button data-v="touch">TOUCH LEFT / RIGHT</button></div></div>
-    <div class="row">SENSITIVITY<div class="seg" data-opt="sens"><button data-v="low">LOW</button><button data-v="mid">MEDIUM</button><button data-v="high">HIGH</button></div></div>
-    <div class="row">FLIP STEERING<div class="seg" data-opt="flip"><button data-v="0">NORMAL</button><button data-v="1">FLIPPED</button></div></div>
-    <div class="row">STRAIGHT AHEAD<div class="seg"><button id="center">HOW I HOLD IT NOW</button><button id="uncenter">LEVEL</button></div></div>
-    <p class="muted" id="tiltInfo"></p>
-    <div class="end"><button id="leave" class="warn">DISCONNECT</button><button id="close" class="go">DONE</button></div>
-  </div>
-</div>
 
 <script>
 (function () {
@@ -198,8 +203,9 @@ button[hidden] { display: none; }
 
 /* =====================================================================
    PHONE WHEEL - the steering wheel for Scanner Games that run on the POS
-   screen (RUSH HOUR). Type the code shown on the screen and tilt the phone
-   to steer. Installable as an app (manifest.webmanifest + sw.js).
+   screen (RUSH HOUR). Type the code shown on the screen, hold the phone
+   sideways like a steering wheel and tilt it to steer. Installable as an
+   app (manifest.webmanifest + sw.js).
    The phone reaches the game through public MQTT brokers, and directly
    over WebRTC when the network allows it.
    URL options: ?room=1234 (from the QR code)  ?relay=wss://...  ?nop2p  ?debug
@@ -382,8 +388,8 @@ let NAME = store.get('wheel.name');
 const OPT = {
   mode: store.get('wheel.mode') === 'touch' ? 'touch' : 'tilt',
   sens: ['low', 'mid', 'high'].indexOf(store.get('wheel.sens')) >= 0 ? store.get('wheel.sens') : 'mid',
-  flip: store.get('wheel.flip') === '1',
-  center: parseFloat(store.get('wheel.center')) || 0,
+  flip: store.get('wheel.flip2') === '1',            // ...2: saved since the wheel is held sideways
+  center: parseFloat(store.get('wheel.center2')) || 0,
 };
 const SENS = { low: 45, mid: 30, high: 20 };  // degrees of tilt for full lock
 // A QR code from a screen with its own relays brings them along; a plain QR code goes back to the default list.
@@ -462,7 +468,7 @@ function connect(code) {
 function disconnect() {
   if (wire) { if (accepted) wire.send({ t: 'bye' }, 'all'); wire.close(); }
   wire = null; accepted = false;
-  releaseLock();
+  releaseLock(); unlockOrientation();
 }
 function hello() { if (wire) wire.send({ t: 'hi', n: NAME, v: 1 }, 'relay'); }
 function onGame(o) {
@@ -479,7 +485,7 @@ function onGame(o) {
   if ((o.t === 'ok' || o.t === 'st') && !accepted) {
     accepted = true; gameGi = o.gi || '';
     if (o.g) $('game').textContent = String(o.g).slice(0, 20);
-    show('drive'); keepAwake(); rtcAt = performance.now() + 800;
+    show('drive'); keepAwake(); lockLandscape(); rtcAt = performance.now() + 800;
   }
   if (o.t === 'st' && o.q > stQ) { stQ = o.q; gameSt = o; renderGame(); }
   else if (o.t === 'pi') wire.send({ t: 'po', k: o.k }, 'fast');
@@ -507,6 +513,9 @@ function keepAwake() {  // tilting does not count as touching the screen, so kee
   } catch (e) { /* not supported */ }
 }
 function releaseLock() { if (lock) { try { lock.release(); } catch (e) { /* ignore */ } lock = null; } }
+// Ask for landscape. This only works in fullscreen or in the installed app; elsewhere layout() turns the screen instead.
+function lockLandscape() { try { const so = window.screen.orientation; if (so && so.lock) so.lock('landscape').catch(() => {}); } catch (e) { /* not supported */ } }
+function unlockOrientation() { try { const so = window.screen.orientation; if (so && so.unlock) so.unlock(); } catch (e) { /* not supported */ } }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') { if (accepted) keepAwake(); }
   else if (accepted && gameSt && (gameSt.m === 'race' || gameSt.m === 'count')) cmd('pause');
@@ -523,21 +532,34 @@ function screenAngle() {
   const so = window.screen && window.screen.orientation, a = so && typeof so.angle === 'number' ? so.angle : typeof window.orientation === 'number' ? window.orientation : 0;
   return ((a % 360) + 360) % 360;
 }
-// How far the phone is turned, in degrees (right is positive), from where "up" is in the plane of the screen.
-// It works held upright like a wheel, tilted back, or lying flat, in portrait or landscape.
+// The phone is held sideways like a steering wheel. side says which way round: 90 = its top to the left, 270 = to the right.
+// It goes by gravity, not by how the screen is rotated, so it also works when the phone's auto-rotate is off.
+// upright: the phone is held up in portrait instead, which doesn't steer.
+let side = screenAngle() === 270 ? 270 : 90, upright = false;
+function upVec() { const b = ori.b * D2R, g = ori.g * D2R; return [-Math.cos(b) * Math.sin(g), Math.sin(b)]; }  // "up" in the phone's own axes (x right, y to its top)
+function updateHold() {
+  if (!ori) return;
+  const [ux, uy] = upVec(), m = Math.hypot(ux, uy);
+  if (ux > .5) side = 90; else if (ux < -.5) side = 270;
+  if (m > .55) {  // not lying flat: how far is it from upright portrait?
+    const off = Math.acos(clamp(Math.abs(uy) / m, 0, 1)) / D2R;
+    if (off < 25) upright = true; else if (off > 35) upright = false;
+  }
+}
+// How far the phone is turned from level, in degrees (right is positive), seen by someone holding it sideways.
+// It works held up like a wheel, tilted back, or lying flat.
 function tiltAngle() {
   if (!ori) return 0;
-  const b = ori.b * D2R, g = ori.g * D2R, a = screenAngle() * D2R;
-  const ux = -Math.cos(b) * Math.sin(g), uy = Math.sin(b);                                  // "up" in the phone's own axes
-  const xs = ux * Math.cos(a) - uy * Math.sin(a), ys = ux * Math.sin(a) + uy * Math.cos(a);  // ... and in the screen's
-  const upright = Math.atan2(-xs, ys), flat = Math.asin(clamp(-xs, -1, 1)), k = clamp((ys - .2) / .4, 0, 1);
-  return (k * upright + (1 - k) * flat) / D2R;
+  const [ux, uy] = upVec(), xs = side === 90 ? -uy : uy, ys = side === 90 ? ux : -ux;
+  const up = Math.atan2(-xs, ys), flat = Math.asin(clamp(-xs, -1, 1)), k = clamp((ys - .2) / .4, 0, 1);
+  return (k * up + (1 - k) * flat) / D2R;
 }
-let steer = 0, touchSteer = 0, padL = false, padR = false, lastSent = 0, lastSentT = 0, driveT = 0;
+let steer = 0, touchSteer = 0, padL = false, padR = false, lastSent = 0, lastHeld = 0, lastSentT = 0, driveT = 0;
 const useTilt = () => OPT.mode === 'tilt' && tiltSeen;
 function readSteer(dt) {
   let raw;
-  if (useTilt()) {
+  if (useTilt() && upright) raw = 0;
+  else if (useTilt()) {
     let a = tiltAngle() - OPT.center;
     if (a > 180) a -= 360; else if (a < -180) a += 360;
     if (OPT.flip) a = -a;
@@ -586,7 +608,7 @@ function renderGame() {
   else if (s.m === 'over') {
     note = 'CRASHED OUT! ' + km(s.d) + ' - ' + (res.first ? 'YOUR FIRST RACE IS ON THE BOARD' : res.pb ? 'NEW PERSONAL BEST!' : 'BEST ' + km(s.best)) + (res.rank ? ' - #' + res.rank + ' OF ' + res.of : '');
     main = ['RACE AGAIN', 'start', 'go'];
-  } else { note = s.best ? 'YOUR BEST: ' + km(s.best) + '. TILT TO TRY THE STEERING.' : 'TILT THE PHONE TO TRY THE STEERING'; main = ['START', 'start', 'go']; }
+  } else { note = (s.best ? 'YOUR BEST: ' + km(s.best) + '. ' : '') + 'HOLD THE PHONE SIDEWAYS AND TILT IT TO TRY THE STEERING'; main = ['START', 'start', 'go']; }
   const key = s.m + note + (main || '') + (second || '');
   if (key !== shown) {
     shown = key;
@@ -596,7 +618,7 @@ function renderGame() {
 }
 for (const id of ['main', 'second']) $(id).addEventListener('click', () => {
   const c = $(id).dataset.c;
-  if (c === 'start' && !standalone() && !IOS) { try { const d = document.documentElement; if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(() => {}); } catch (e) { /* not supported */ } }
+  if (c === 'start' && !standalone() && !IOS) { try { const d = document.documentElement; if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().then(lockLandscape).catch(() => {}); } catch (e) { /* not supported */ } }
   cmd(c);
 });
 let ctlKey = '';
@@ -610,6 +632,23 @@ function renderControls() {
   $('tilt').hidden = !ask;
   $('tiltInfo').textContent = info;
 }
+// When the phone's auto-rotate is off, the page stays in portrait while the phone is held sideways: turn the drive screen to match.
+let layoutKey = '';
+function layout() {
+  const vw = window.innerWidth, vh = window.innerHeight, up = cur === 'drive' && useTilt() && upright;
+  const rot = cur === 'drive' && vh > vw && tiltSeen && !upright ? (side === 90 ? 90 : -90) : 0, key = rot + '|' + vw + '|' + vh + '|' + up;
+  if (key === layoutKey) return;
+  layoutKey = key;
+  const d = $('drive'), w = rot ? vh : vw, h = rot ? vw : vh;
+  d.style.width = rot ? w + 'px' : ''; d.style.height = rot ? h + 'px' : '';
+  d.style.right = d.style.bottom = rot ? 'auto' : '';
+  d.style.transformOrigin = rot ? '0 0' : '';
+  d.style.transform = rot === 90 ? 'translate(' + vw + 'px,0) rotate(90deg)' : rot === -90 ? 'translate(0,' + vh + 'px) rotate(-90deg)' : '';
+  d.style.setProperty('--w', w + 'px'); d.style.setProperty('--h', h + 'px');
+  d.classList.toggle('land', w > h);
+  d.classList.toggle('upright', up);
+}
+window.addEventListener('resize', layout);
 let lastW = null;
 function drawWheel(s) {
   const r = Math.round(s * 90);
@@ -635,7 +674,7 @@ function linkStatus() {
 }
 
 // ---------- settings sheet ----------
-function saveOpt() { store.set('wheel.mode', OPT.mode); store.set('wheel.sens', OPT.sens); store.set('wheel.flip', OPT.flip ? '1' : '0'); store.set('wheel.center', String(OPT.center)); renderOpt(); }
+function saveOpt() { store.set('wheel.mode', OPT.mode); store.set('wheel.sens', OPT.sens); store.set('wheel.flip2', OPT.flip ? '1' : '0'); store.set('wheel.center2', String(OPT.center)); renderOpt(); }
 function renderOpt() {
   for (const seg of document.querySelectorAll('.seg[data-opt]')) {
     const v = seg.dataset.opt === 'flip' ? (OPT.flip ? '1' : '0') : OPT[seg.dataset.opt];
@@ -660,14 +699,16 @@ let lastTick = performance.now();
 setInterval(() => {
   const now = performance.now(), dt = Math.min(.1, (now - lastTick) / 1000);
   lastTick = now;
-  const s = readSteer(dt);
+  updateHold();
+  const s = readSteer(dt), held = useTilt() && upright ? 1 : 0;
   if (cur === 'drive') { driveT += dt; drawWheel(s); renderControls(); } else driveT = 0;
+  layout();
   if (wire) {
     if (!accepted) { if (now - helloT > 1000) { helloT = now; hello(); } }
     else {
       if (now - lastGame > 3500) lost('NO ANSWER FROM THE SCREEN');
       const r = Math.round(s * 1000) / 1000;
-      if (Math.abs(r - lastSent) > .008 || now - lastSentT > 150) { wire.send({ t: 's', a: r }, 'fast'); lastSent = r; lastSentT = now; }
+      if (Math.abs(r - lastSent) > .008 || held !== lastHeld || now - lastSentT > 150) { wire.send({ t: 's', a: r, h: held }, 'fast'); lastSent = r; lastHeld = held; lastSentT = now; }
       if (P2P && !wire.direct && !wire.pc && rtcTries < 3 && now > rtcAt) { rtcTries++; rtcAt = now + 20000; wire.call(); }
     }
   }
@@ -680,7 +721,7 @@ renderCode(); renderOpt();
 if (NAME.length >= 2 && codeBuf.length === 4) connect(codeBuf);
 else { show('setup'); if (!NAME) setTimeout(() => { try { $('name').focus(); } catch (e) { /* ignore */ } }, 300); }
 window.WHEEL = {
-  state: () => ({ screen: cur, accepted, room, steer, direct: !!(wire && wire.direct), relays: wire ? wire.online() : 0, game: gameSt && gameSt.m, tilt: tiltSeen, angle: tiltAngle() }),
+  state: () => ({ screen: cur, accepted, room, steer, direct: !!(wire && wire.direct), relays: wire ? wire.online() : 0, game: gameSt && gameSt.m, tilt: tiltSeen, angle: tiltAngle(), side, upright, rot: layoutKey.split('|')[0] | 0 }),
   tiltAngle, setOri: (b, g) => { ori = { b, g }; tiltSeen = true; },
 };
 })();
