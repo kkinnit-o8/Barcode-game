@@ -55,7 +55,16 @@ a.card:hover, a.card:focus-visible, .card.hit { border-color: var(--accent); tra
 .soon { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: center; gap: 14px; padding: 12px 20px; border-style: dashed; box-shadow: none; color: var(--muted); }
 .soon .q { font-size: 40px; line-height: 1; color: var(--line); font-weight: 900; }
 .soon strong { color: var(--ink); letter-spacing: .1em; }
-footer { margin-top: 26px; text-align: center; color: var(--muted); font-size: 13px; }
+footer { margin-top: 26px; margin-bottom: 64px; text-align: center; color: var(--muted); font-size: 13px; }
+.wheel {
+  position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 4; display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px 8px 8px; background: var(--panel); border: 3px solid var(--accent); border-radius: 999px; color: var(--ink); text-decoration: none;
+  font-weight: 700; letter-spacing: .08em; box-shadow: 0 5px 0 #000;
+}
+.wheel svg { display: block; width: 34px; height: 34px; flex: none; }
+.wheel small { display: block; color: var(--muted); font-weight: 400; letter-spacing: 0; font-size: 12px; }
+.wheel:hover, .wheel:focus-visible { background: #2a2018; outline: none; }
+@media (max-width: 600px) { .wheel { padding: 6px 14px 6px 6px; } .wheel small { display: none; } .wheel svg { width: 28px; height: 28px; } }
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); padding: 10px 16px; background: #000; border: 2px solid var(--hot);
   color: var(--ink); font-weight: 700; border-radius: 4px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 5;
@@ -83,6 +92,10 @@ footer { margin-top: 26px; text-align: center; color: var(--muted); font-size: 1
   </main>
   <footer>Made for the SuSoft POS terminal &middot; Works with any barcode scanner in keyboard mode &middot; Scores are saved on this machine</footer>
 </div>
+<a class="wheel" href="wheel/" aria-label="Phone Wheel: steer RUSH HOUR with your phone">
+  <svg viewBox="-50 -50 100 100" aria-hidden="true"><circle r="40" fill="none" stroke="#ffa424" stroke-width="10"/><rect x="-38" y="-5" width="76" height="10" fill="#ffa424"/><rect x="-5" y="0" width="10" height="38" fill="#ffa424"/><circle r="15" fill="#1a1511" stroke="#ffa424" stroke-width="5"/></svg>
+  <span>PHONE WHEEL<small>Steer RUSH HOUR with your phone</small></span>
+</a>
 <div class="toast" id="toast" role="status"></div>
 <script>
 (function () {
@@ -103,6 +116,12 @@ const GAMES = [
     genre: 'Tower defense \u00b7 1 player',
     desc: 'The groceries came alive and ride the conveyor belt to the exit without paying. Build and upgrade scanners along the belt to scan them all, from gum to the Cart King.',
     top: () => topRounds('stockdef.best'),
+  },
+  {
+    name: 'RUSH HOUR', url: 'rush-hour/', code: '710003', img: 'rush-hour/preview.png', color: 'grad:#fff07a,#ffb020,#e8341c',
+    genre: 'Racing \u00b7 steer with your phone',
+    desc: 'The roads are packed at rush hour. Race on the big screen and steer by tilting your phone: open PHONE WHEEL in the bottom corner on your phone. It gets faster every 20 seconds.',
+    top: () => topFrom('rushhour.best').map(r => ({ n: r.n, s: (r.s / 1000).toFixed(2) + ' KM' })),
   },
 ];
 

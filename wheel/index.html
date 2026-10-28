@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d0a08">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wheel">
+<title>Phone Wheel</title>
+<meta name="description" content="Steer Scanner Games on the POS screen with your phone.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root {
+  --bg: #0d0a08; --panel: #1a1511; --line: #3b3028; --ink: #f4ece2; --muted: #a8998a; --accent: #ffa424; --hot: #e8341c; --go: #2f9e46;
+  --mono: "Courier New", "Droid Sans Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.4 var(--mono); overflow: hidden; touch-action: manipulation;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
+}
+section {
+  display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; overflow: auto;
+  padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+section.on { display: flex; }
+h1, h2 { margin: 0; }
+.logo svg { display: block; height: 34px; width: auto; margin: 0 auto; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: 14px; }
+button {
+  font: inherit; font-weight: 700; letter-spacing: .06em; border: 0; border-radius: 8px; padding: 14px 18px; background: var(--line); color: var(--ink);
+  box-shadow: 0 4px 0 #000; cursor: pointer; touch-action: manipulation;
+}
+button:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+button.go { background: var(--go); color: #fff; }
+button.warn { background: #8a2a22; color: #fff; }
+button[hidden] { display: none; }
+.msg { color: #ff8a70; font-weight: 700; min-height: 1.4em; text-align: center; }
+
+/* setup */
+#setup { flex-direction: column; align-items: center; gap: 12px; }
+#setup .col { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 360px; }
+.field { width: 100%; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); letter-spacing: .1em; }
+#name {
+  font: 700 22px var(--mono); text-transform: uppercase; letter-spacing: .1em; padding: 10px 12px; border-radius: 6px; border: 3px solid var(--line);
+  background: #000; color: var(--ink); width: 100%; -webkit-user-select: text; user-select: text;
+}
+#name:focus { outline: none; border-color: var(--accent); }
+.code { display: flex; gap: 10px; justify-content: center; }
+.code span {
+  width: 54px; height: 66px; border: 3px solid var(--line); border-radius: 6px; background: #000; color: #ffe070;
+  font-size: 42px; font-weight: 900; display: flex; align-items: center; justify-content: center;
+}
+.code span.cur { border-color: var(--accent); }
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.keys button { font-size: 26px; padding: 10px 0; }
+.keys button.small { font-size: 16px; }
+#install { width: 100%; }
+@media (orientation: landscape) and (max-height: 560px) {
+  #setup { flex-direction: row; justify-content: center; align-items: center; gap: 28px; }
+  #setup .col { max-width: 330px; }
+  .keys button { padding: 6px 0; font-size: 22px; }
+}
+
+/* connecting */
+#link { flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.spin { width: 54px; height: 54px; border: 6px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* driving */
+#drive { flex-direction: column; overflow: hidden; }
+#drive header { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); position: relative; z-index: 2; white-space: nowrap; }
+#drive header b { color: var(--ink); }
+#drive header .who { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#dot { width: 12px; height: 12px; border-radius: 50%; background: #666; flex: none; }
+#dot.ok { background: #3fdc5a; } #dot.slow { background: #ffc030; } #dot.bad { background: #ff4030; }
+#via { margin-left: auto; }
+#gear { padding: 4px 12px 6px; font-size: 24px; line-height: 1; }
+#stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; pointer-events: none; position: relative; z-index: 1; }
+#wheel { width: min(62vw, 42vh); height: min(62vw, 42vh); }
+#wheel svg { width: 100%; height: 100%; display: block; }
+#meter { width: min(80vw, 380px); height: 10px; border-radius: 5px; background: #000; border: 1px solid var(--line); position: relative; }
+#meter::after { content: ""; position: absolute; left: 50%; top: -4px; width: 2px; height: 18px; background: var(--muted); }
+#meterI { position: absolute; top: -4px; left: 50%; width: 10px; height: 18px; margin-left: -5px; border-radius: 3px; background: var(--accent); z-index: 1; }
+#side { display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; position: relative; z-index: 1; padding-top: 6px; }
+#side button { pointer-events: auto; }
+#stats { font-size: 18px; text-align: center; }
+#stats b { font-size: 26px; }
+#lives { color: #ff5040; letter-spacing: .1em; }
+#note { font-weight: 700; color: var(--accent); text-align: center; min-height: 1.4em; }
+#note.big { font-size: 56px; line-height: 1; color: #ffe070; }
+#actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+#actions button { min-width: 140px; font-size: 22px; padding: 16px 22px; }
+#tilt { position: relative; z-index: 3; margin: 0 auto 8px; }
+.pad { position: absolute; top: 0; bottom: 0; width: 50%; z-index: 0; display: none; align-items: center; justify-content: center; font-size: 60px; color: rgba(255,255,255,.08); }
+.pad.on { background: rgba(255,164,36,.12); color: rgba(255,164,36,.5); }
+#padL { left: 0; } #padR { right: 0; }
+#drive.touch .pad { display: flex; }
+@media (orientation: landscape) {
+  #drive.on { display: grid; grid-template-columns: 1fr minmax(220px, 40%); grid-template-rows: auto 1fr auto; column-gap: 16px; }
+  #drive header { grid-column: 1 / -1; }
+  #stage { grid-column: 1; grid-row: 2 / 4; }
+  #side { grid-column: 2; grid-row: 2; justify-content: center; }
+  #tilt { grid-column: 2; grid-row: 3; }
+  #wheel { width: min(46vw, 62vh); height: min(46vw, 62vh); }
+  #actions { flex-direction: column; }
+}
+
+/* settings */
+#sheet { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 10; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; padding: 16px; }
+#sheet[hidden] { display: none; }
+#sheet .box { background: var(--panel); border: 3px solid var(--line); border-radius: 8px; padding: 16px; width: 100%; max-width: 460px; max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); letter-spacing: .1em; }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; padding: 10px 6px; font-size: 15px; }
+.seg button.sel { background: var(--accent); color: #111; }
+.end { display: flex; gap: 10px; }
+.end button { flex: 1; }
+</style>
+</head>
+<body>
+<section id="setup">
+  <div class="col">
+    <h1 class="logo" id="logo">PHONE WHEEL</h1>
+    <p class="muted" style="text-align:center">Steer RUSH HOUR on the POS screen with your phone.</p>
+    <label class="field">YOUR NAME
+      <input id="name" maxlength="10" autocomplete="nickname" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="NAME">
+    </label>
+    <p id="setupMsg" class="msg"></p>
+  </div>
+  <div class="col">
+    <div class="field" style="align-items:center">CODE ON THE SCREEN</div>
+    <div class="code" id="code"><span></span><span></span><span></span><span></span></div>
+    <div class="keys" id="keys">
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+      <button data-k="del" class="small">DEL</button><button data-k="0">0</button><button data-k="go" class="go small">GO</button>
+    </div>
+    <button id="install" hidden>INSTALL AS AN APP</button>
+    <p class="muted" id="hint" style="text-align:center"></p>
+  </div>
+</section>
+
+<section id="link">
+  <div class="spin"></div>
+  <h2 id="linkTitle">LOOKING FOR THE SCREEN</h2>
+  <p class="muted" id="linkInfo"></p>
+  <p class="muted">Open RUSH HOUR on the POS screen. The code is on its start screen.</p>
+  <button id="change">CHANGE CODE OR NAME</button>
+</section>
+
+<section id="drive">
+  <header><span id="dot"></span><span class="who"><b id="who"></b> &middot; <span id="game">RUSH HOUR</span> &middot; <span id="roomLbl"></span></span><span id="via"></span><button id="gear" aria-label="Settings">&#9881;&#xFE0E;</button></header>
+  <div id="stage">
+    <div id="wheel"><svg viewBox="-100 -100 200 200" aria-hidden="true"><g id="wheelG">
+      <circle r="82" fill="none" stroke="#000" stroke-width="24"/>
+      <circle r="82" fill="none" stroke="#4a3c30" stroke-width="16"/>
+      <circle r="82" fill="none" stroke="#5c4a3a" stroke-width="4"/>
+      <rect x="-78" y="-8" width="156" height="16" rx="5" fill="#3b3028"/>
+      <rect x="-8" y="0" width="16" height="78" rx="5" fill="#3b3028"/>
+      <circle r="28" fill="#1a1511" stroke="#ffa424" stroke-width="5"/>
+      <path d="M-11 -6h4v12h-4zM-5 -6h2v12h-2zM-1 -6h4v12h-4zM5 -6h2v12h-2zM9 -6h2v12h-2z" fill="#ffa424"/>
+      <rect x="-6" y="-99" width="12" height="22" rx="3" fill="#ffa424"/>
+    </g></svg></div>
+    <div id="meter"><i id="meterI"></i></div>
+  </div>
+  <div id="side">
+    <div id="stats"><b id="spd">0</b> KM/H &middot; <b id="dst">0.00</b> KM<span id="lives"></span></div>
+    <div id="note"></div>
+    <div id="actions"><button id="main" class="go">START</button><button id="second" hidden>PAUSE</button></div>
+  </div>
+  <button id="tilt" class="go" hidden>TAP TO TURN ON TILT STEERING</button>
+  <div class="pad" id="padL">&#9664;</div><div class="pad" id="padR">&#9654;</div>
+</section>
+
+<div id="sheet" hidden>
+  <div class="box">
+    <h2>SETTINGS</h2>
+    <div class="row">STEERING<div class="seg" data-opt="mode"><button data-v="tilt">TILT THE PHONE</button><button data-v="touch">TOUCH LEFT / RIGHT</button></div></div>
+    <div class="row">SENSITIVITY<div class="seg" data-opt="sens"><button data-v="low">LOW</button><button data-v="mid">MEDIUM</button><button data-v="high">HIGH</button></div></div>
+    <div class="row">FLIP STEERING<div class="seg" data-opt="flip"><button data-v="0">NORMAL</button><button data-v="1">FLIPPED</button></div></div>
+    <div class="row">STRAIGHT AHEAD<div class="seg"><button id="center">HOW I HOLD IT NOW</button><button id="uncenter">LEVEL</button></div></div>
+    <p class="muted" id="tiltInfo"></p>
+    <div class="end"><button id="leave" class="warn">DISCONNECT</button><button id="close" class="go">DONE</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* =====================================================================
+   PHONE WHEEL - the steering wheel for Scanner Games that run on the POS
+   screen (RUSH HOUR). Type the code shown on the screen and tilt the phone
+   to steer. Installable as an app (manifest.webmanifest + sw.js).
+   The phone reaches the game through public MQTT brokers, and directly
+   over WebRTC when the network allows it.
+   URL options: ?room=1234 (from the QR code)  ?relay=wss://...  ?nop2p  ?debug
+   ===================================================================== */
+
+const Q = new URLSearchParams(location.search);
+const DEBUG = Q.has('debug');
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const km = m => (Math.max(0, m || 0) / 1000).toFixed(2) + ' KM';
+const store = {
+  get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } },
+};
+
+// ---------- phone link. The same code is in rush-hour/index.html and wheel/index.html: keep the two copies alike ----------
+// Both sides connect to every broker below and send through all that are up, so the link works as long as
+// the POS and the phone can both reach one of them. ?relay=wss://host:port/path (comma-separated) replaces the list.
+const RELAYS = [
+  { u: 'wss://broker.emqx.io:8084/mqtt' },
+  { u: 'wss://broker.hivemq.com:8884/mqtt' },
+  { u: 'wss://test.mosquitto.org:8081/mqtt' },
+  { u: 'wss://public.cloud.shiftr.io', user: 'public', pass: 'public' },
+];
+const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
+const TOPIC = room => 'scannergames/wheel/v1/' + room + '/';
+const TE = new TextEncoder(), TD = new TextDecoder();
+function relayList(s) {
+  const out = [];
+  for (const part of String(s || '').split(',')) {
+    try {
+      const x = new URL(part.trim()), c = {};
+      if (x.protocol !== 'wss:' && x.protocol !== 'ws:') continue;
+      if (x.username) { c.user = decodeURIComponent(x.username); c.pass = decodeURIComponent(x.password); x.username = ''; x.password = ''; }
+      c.u = x.href;
+      out.push(c);
+    } catch (e) { /* not a URL */ }
+  }
+  return out;
+}
+const mstr = s => { const b = TE.encode(s), o = new Uint8Array(b.length + 2); o[0] = b.length >> 8; o[1] = b.length & 255; o.set(b, 2); return o; };
+function mqttPacket(type, parts) {
+  let n = 0;
+  for (const p of parts) n += p.length;
+  const head = [type];
+  let x = n;
+  do { let b = x & 127; x >>= 7; if (x) b |= 128; head.push(b); } while (x);
+  const out = new Uint8Array(head.length + n);
+  out.set(head);
+  let o = head.length;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+// MQTT 3.1.1 over WebSocket: just enough for QoS 0 publish and subscribe. Reconnects by itself.
+class Mqtt {
+  constructor(cfg, sub, onMsg, onUp) { this.cfg = cfg; this.sub = sub; this.onMsg = onMsg; this.onUp = onUp; this.ws = null; this.up = false; this.wait = 1500; this.dead = false; this.open(); }
+  open() {
+    if (this.dead) return;
+    let ws;
+    try { ws = new WebSocket(this.cfg.u, ['mqtt']); } catch (e) { this.retry(); return; }
+    ws.binaryType = 'arraybuffer';
+    this.ws = ws; this.rx = new Uint8Array(0);
+    this.giveUp = setTimeout(() => { try { ws.close(); } catch (e) { /* ignore */ } }, 8000);
+    ws.onopen = () => {
+      const c = this.cfg, parts = [mstr('MQTT'), [4, 2 | (c.user ? 0x80 : 0) | (c.user && c.pass ? 0x40 : 0), 0, 30], mstr('sg' + Math.random().toString(36).slice(2, 12))];
+      if (c.user) parts.push(mstr(c.user));
+      if (c.user && c.pass) parts.push(mstr(c.pass));
+      this.write(0x10, parts);
+    };
+    ws.onmessage = e => { if (this.ws === ws && typeof e.data !== 'string') this.data(new Uint8Array(e.data)); };
+    ws.onclose = ws.onerror = () => {
+      clearTimeout(this.giveUp);
+      if (this.ws !== ws) return;
+      this.ws = null; this.up = false; clearInterval(this.ping);
+      this.retry();
+    };
+  }
+  retry() { if (!this.dead) { setTimeout(() => this.open(), this.wait); this.wait = Math.min(this.wait * 2, 30000); } }
+  write(type, parts) { const ws = this.ws; if (ws && ws.readyState === 1) { try { ws.send(mqttPacket(type, parts)); } catch (e) { /* closing */ } } }
+  data(d) {
+    let b = d;
+    if (this.rx.length) { b = new Uint8Array(this.rx.length + d.length); b.set(this.rx); b.set(d, this.rx.length); }
+    let o = 0;
+    for (;;) {
+      let i = o + 1, len = 0, mul = 1, byte = 128;
+      while (byte & 128) { if (i >= b.length) { byte = -1; break; } byte = b[i++]; len += (byte & 127) * mul; mul *= 128; }
+      if (byte < 0 || i + len > b.length) break;
+      this.packet(b[o], b.subarray(i, i + len));
+      o = i + len;
+    }
+    this.rx = b.slice(o);
+  }
+  packet(h, p) {
+    const type = h >> 4;
+    if (type === 2) {  // CONNACK
+      if (p[1] !== 0) { try { this.ws.close(); } catch (e) { /* ignore */ } return; }
+      clearTimeout(this.giveUp);
+      this.up = true; this.wait = 1500;
+      this.write(0x82, [[0, 1], mstr(this.sub), [0]]);
+      clearInterval(this.ping);
+      this.ping = setInterval(() => this.write(0xC0, []), 20000);
+      if (this.onUp) this.onUp();
+    } else if (type === 3) {  // PUBLISH
+      let s = 2 + (p[0] << 8 | p[1]);
+      if (h & 6) s += 2;  // QoS 1 and 2 carry a packet id
+      let o;
+      try { o = JSON.parse(TD.decode(p.subarray(s))); } catch (e) { return; }
+      this.onMsg(o);
+    }
+  }
+  pub(topic, text) { if (this.up) this.write(0x30, [mstr(topic), TE.encode(text)]); }
+  close() { this.write(0xE0, []); this.dead = true; this.up = false; clearInterval(this.ping); clearTimeout(this.giveUp); const ws = this.ws; this.ws = null; if (ws) { try { ws.close(); } catch (e) { /* ignore */ } } }
+}
+// One link between the game ('g') and a phone ('p'): every relay, plus a WebRTC data channel when one can be set up.
+// Messages are JSON objects with a sequence number q, so copies that come through several relays are dropped.
+class Wire {
+  constructor(room, me, relays, onMsg, onUp) {
+    this.base = TOPIC(room); this.me = me; this.onMsg = onMsg; this.q = Date.now(); this.tag = {};
+    this.pc = null; this.dc = null; this.dcSeen = 0; this.ice = null;
+    this.relays = relays.map(r => new Mqtt(r, this.base + (me === 'g' ? 'p' : 'g'), o => this.onMsg(o, 'relay'), onUp));
+  }
+  get direct() { return !!this.dc && this.dc.readyState === 'open' && performance.now() - this.dcSeen < 1500; }
+  online() { let n = 0; for (const r of this.relays) if (r.up) n++; return n; }
+  send(o, how) {  // how: 'fast' = the direct link when it works, else the relays; 'all' = both; 'relay' = relays only
+    for (const k in this.tag) if (!(k in o)) o[k] = this.tag[k];
+    o.q = ++this.q;
+    const s = JSON.stringify(o), direct = how !== 'relay' && this.direct;
+    if (direct) { try { this.dc.send(s); } catch (e) { /* closing */ } }
+    if (!direct || how === 'all') for (const r of this.relays) r.pub(this.base + this.me, s);
+  }
+  // The phone offers a data channel, the game answers. The offer, answer and ICE candidates go through the relays.
+  call() {
+    if (!window.RTCPeerConnection) return;
+    try {
+      const pc = this.newPc();
+      this.attach(pc.createDataChannel('wheel', { ordered: false, maxRetransmits: 0 }));
+      pc.createOffer().then(d => pc.setLocalDescription(d)).then(() => { if (this.pc === pc) this.send({ t: 'rtc', d: { sdp: pc.localDescription.toJSON() } }, 'relay'); }).catch(() => this.hangup());
+    } catch (e) { this.hangup(); }
+  }
+  signal(d) {
+    if (!window.RTCPeerConnection || !d) return;
+    try {
+      if (d.sdp && d.sdp.type === 'offer') {
+        const pc = this.newPc();
+        pc.setRemoteDescription(d.sdp).then(() => pc.createAnswer()).then(a => pc.setLocalDescription(a))
+          .then(() => { if (this.pc !== pc) return; this.send({ t: 'rtc', d: { sdp: pc.localDescription.toJSON() } }, 'relay'); this.flushIce(pc); }).catch(() => this.hangup());
+      } else if (d.sdp && d.sdp.type === 'answer' && this.pc && this.pc.signalingState === 'have-local-offer') {
+        const pc = this.pc;
+        pc.setRemoteDescription(d.sdp).then(() => this.flushIce(pc)).catch(() => this.hangup());
+      } else if (d.ice && this.pc) {
+        if (this.ice) this.ice.push(d.ice); else this.pc.addIceCandidate(d.ice).catch(() => {});
+      }
+    } catch (e) { this.hangup(); }
+  }
+  newPc() {
+    this.hangup();
+    const pc = this.pc = new RTCPeerConnection({ iceServers: ICE });
+    this.ice = [];  // candidates that arrive before the other side's description
+    pc.onicecandidate = e => { if (e.candidate && this.pc === pc) this.send({ t: 'rtc', d: { ice: e.candidate.toJSON() } }, 'relay'); };
+    pc.ondatachannel = e => { if (this.pc === pc) this.attach(e.channel); };
+    pc.onconnectionstatechange = () => { if (this.pc === pc && (pc.connectionState === 'failed' || pc.connectionState === 'closed')) this.hangup(); };
+    this.pcT = setTimeout(() => { if (this.pc === pc && !this.dc) this.hangup(); }, 15000);
+    return pc;
+  }
+  attach(dc) {
+    dc.onopen = () => { this.dc = dc; this.dcSeen = performance.now(); };
+    dc.onmessage = e => { let o; try { o = JSON.parse(e.data); } catch (x) { return; } this.dcSeen = performance.now(); this.onMsg(o, 'direct'); };
+    dc.onclose = () => { if (this.dc === dc) this.dc = null; };
+    if (dc.readyState === 'open') dc.onopen();
+  }
+  flushIce(pc) { if (this.pc !== pc) return; const l = this.ice || []; this.ice = null; for (const c of l) pc.addIceCandidate(c).catch(() => {}); }
+  hangup() { clearTimeout(this.pcT); const pc = this.pc; this.pc = null; this.dc = null; this.ice = null; if (pc) { try { pc.close(); } catch (e) { /* ignore */ } } }
+  close() { this.hangup(); for (const r of this.relays) r.close(); }
+}
+
+// ---------- settings ----------
+let ID = store.get('wheel.id');
+if (!/^p[0-9a-z]{8,}$/.test(ID)) { ID = 'p' + Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 6); store.set('wheel.id', ID); }
+let NAME = store.get('wheel.name');
+const OPT = {
+  mode: store.get('wheel.mode') === 'touch' ? 'touch' : 'tilt',
+  sens: ['low', 'mid', 'high'].indexOf(store.get('wheel.sens')) >= 0 ? store.get('wheel.sens') : 'mid',
+  flip: store.get('wheel.flip') === '1',
+  center: parseFloat(store.get('wheel.center')) || 0,
+};
+const SENS = { low: 45, mid: 30, high: 20 };  // degrees of tilt for full lock
+// A QR code from a screen with its own relays brings them along; a plain QR code goes back to the default list.
+if (Q.has('relay')) store.set('wheel.relay', Q.get('relay')); else if (Q.has('room')) store.set('wheel.relay', '');
+const CUSTOM = relayList(store.get('wheel.relay'));
+const P2P = !Q.has('nop2p');
+
+// ---------- screens ----------
+let cur = '';
+function show(id) { for (const s of document.querySelectorAll('section')) s.classList.toggle('on', s.id === id); cur = id; }
+const FONT = {};
+(function () {
+  const s = "AehhvhhhBuhhuhhuCehgggheDuhhhhhuEvgguggvFvggugggGehgnhhfHhhhvhhhIe44444eJ72222icKhikokihLggggggvMhrllhhhNhhpljhhOehhhhhePuhhugggQehhhlidRuhhukihSfgge11uTv444444UhhhhhheVhhhhha4WhhhlllaXhha4ahhYhhha444Zv1248gv 0000000";
+  const d = '0123456789abcdefghijklmnopqrstuv';
+  for (let i = 0; i + 8 <= s.length; i += 8) { const g = []; for (let r = 1; r < 8; r++) g.push(d.indexOf(s[i + r])); FONT[s[i]] = g; }
+})();
+function pixelSVG(str, c0, c1) {
+  let d = '';
+  for (let i = 0; i < str.length; i++) { const g = FONT[str[i]] || FONT[' ']; for (let r = 0; r < 7; r++) for (let b = 0; b < 5; b++) if (g[r] & (16 >> b)) d += 'M' + (i * 6 + b) + ' ' + r + 'h1v1h-1z'; }
+  return '<svg viewBox="0 0 ' + str.length * 6 + ' 8" shape-rendering="crispEdges" role="img" aria-label="' + str + '"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + c0 + '"/><stop offset="1" stop-color="' + c1 + '"/></linearGradient></defs>' +
+    '<path transform="translate(.6 .6)" fill="#000" d="' + d + '"/><path fill="url(#lg)" d="' + d + '"/></svg>';
+}
+$('logo').innerHTML = pixelSVG('PHONE WHEEL', '#fff07a', '#ff8a10');
+const standalone = () => (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches)) || navigator.standalone === true;
+const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (!standalone()) $('hint').textContent = IOS ? 'Tip: tap Share, then Add to Home Screen, to keep the wheel on your phone like an app.' : 'Tip: add this page to your home screen from the browser menu to keep it like an app.';
+let installEv = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; $('install').hidden = false; });
+$('install').addEventListener('click', () => { if (installEv) { installEv.prompt(); installEv = null; $('install').hidden = true; } });
+
+// ---------- name and code ----------
+const cleanName = v => String(v || '').toUpperCase().replace(/[^A-Z0-9ÆØÅÄÖÜ]/g, '').slice(0, 10);
+let codeBuf = /^\d{4}$/.test(Q.get('room') || '') ? Q.get('room') : store.get('wheel.room');
+if (!/^\d{4}$/.test(codeBuf)) codeBuf = '';
+$('name').value = NAME;
+$('name').addEventListener('input', () => { const v = cleanName($('name').value); if (v !== $('name').value) $('name').value = v; });
+$('name').addEventListener('keydown', e => { if (e.key === 'Enter') $('name').blur(); });
+function renderCode() { [...$('code').children].forEach((s, i) => { s.textContent = codeBuf[i] || ''; s.classList.toggle('cur', i === codeBuf.length); }); }
+function setupMsg(t) { $('setupMsg').textContent = t || ''; }
+$('keys').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const k = b.dataset.k;
+  setupMsg('');
+  if (k === 'del') codeBuf = codeBuf.slice(0, -1);
+  else if (k === 'go') go();
+  else if (codeBuf.length < 4) { codeBuf += k; if (codeBuf.length === 4 && cleanName($('name').value).length >= 2) go(); }
+  renderCode();
+});
+function go() {
+  const n = cleanName($('name').value);
+  if (n.length < 2) { setupMsg('TYPE YOUR NAME FIRST (2 LETTERS OR MORE)'); $('name').focus(); return; }
+  if (codeBuf.length !== 4) { setupMsg('TYPE THE 4-DIGIT CODE FROM THE SCREEN'); return; }
+  NAME = n; store.set('wheel.name', n);
+  connect(codeBuf);
+}
+
+// ---------- the link to the screen ----------
+let gameGi = '', wire = null, room = '', accepted = false, lastGame = 0, helloT = 0, rtcTries = 0, rtcAt = 0, gameSt = null, stQ = 0, got = new Set(), old = new Set();
+function fresh(q) {  // drop the copies that arrive through the other relays
+  if (got.has(q) || old.has(q)) return false;
+  got.add(q);
+  if (got.size > 120) { old = got; got = new Set(); }
+  return true;
+}
+function connect(code) {
+  disconnect();
+  room = code; store.set('wheel.room', code);
+  wire = new Wire(code, 'p', CUSTOM.length ? CUSTOM : RELAYS, onGame, () => { helloT = 0; });
+  wire.tag = { id: ID };
+  accepted = false; lastGame = 0; helloT = 0; rtcTries = 0; gameSt = null; stQ = 0;
+  $('linkTitle').textContent = 'LOOKING FOR SCREEN ' + code;
+  $('roomLbl').textContent = code;
+  show('link');
+}
+function disconnect() {
+  if (wire) { if (accepted) wire.send({ t: 'bye' }, 'all'); wire.close(); }
+  wire = null; accepted = false;
+  releaseLock();
+}
+function hello() { if (wire) wire.send({ t: 'hi', n: NAME, v: 1 }, 'relay'); }
+function onGame(o) {
+  if (!o || o.to !== ID || typeof o.q !== 'number') return;
+  if (accepted && gameGi && o.gi && o.gi !== gameGi) return;  // another screen with the same code
+  if (!fresh(o.q)) return;
+  lastGame = performance.now();
+  if (o.t === 'busy') { const n = cleanName(o.n); disconnect(); show('setup'); setupMsg('THAT SCREEN ALREADY HAS A PHONE' + (n ? ' (' + n + ')' : '') + '. TRY AGAIN WHEN THEY ARE DONE.'); return; }
+  if (o.t === 'bye') {
+    if (o.kick) { disconnect(); show('setup'); setupMsg('THE SCREEN DISCONNECTED YOUR PHONE'); }
+    else lost('THE SCREEN CLOSED THE GAME');
+    return;
+  }
+  if ((o.t === 'ok' || o.t === 'st') && !accepted) {
+    accepted = true; gameGi = o.gi || '';
+    if (o.g) $('game').textContent = String(o.g).slice(0, 20);
+    show('drive'); keepAwake(); rtcAt = performance.now() + 800;
+  }
+  if (o.t === 'st' && o.q > stQ) { stQ = o.q; gameSt = o; renderGame(); }
+  else if (o.t === 'pi') wire.send({ t: 'po', k: o.k }, 'fast');
+  else if (o.t === 'rtc') wire.signal(o.d);
+  else if (o.t === 'ev') {
+    if (o.e === 'crash') buzz([90, 50, 180]);
+    else if (o.e === 'level') buzz(40);
+    else if (o.e === 'over') buzz([200, 80, 320]);
+  }
+}
+function lost(why) {
+  if (!wire) return;
+  accepted = false; helloT = 0; gameGi = '';
+  $('linkTitle').textContent = 'RECONNECTING TO ' + room;
+  $('linkInfo').textContent = why || '';
+  show('link');
+}
+function cmd(c) { if (wire && accepted) { wire.send({ t: 'c', c }, 'all'); buzz(15); } }
+function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* not supported */ } }
+let lock = null;
+function keepAwake() {  // tilting does not count as touching the screen, so keep it from going dark
+  try {
+    if (lock || !navigator.wakeLock || document.visibilityState !== 'visible') return;
+    navigator.wakeLock.request('screen').then(l => { lock = l; l.addEventListener('release', () => { lock = null; }); }).catch(() => {});
+  } catch (e) { /* not supported */ }
+}
+function releaseLock() { if (lock) { try { lock.release(); } catch (e) { /* ignore */ } lock = null; } }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { if (accepted) keepAwake(); }
+  else if (accepted && gameSt && (gameSt.m === 'race' || gameSt.m === 'count')) cmd('pause');
+});
+window.addEventListener('pagehide', () => { if (wire && accepted) wire.send({ t: 'bye', away: 1 }, 'all'); });  // the game pauses and waits for the phone
+$('change').addEventListener('click', () => { disconnect(); show('setup'); renderCode(); });
+
+// ---------- steering ----------
+const D2R = Math.PI / 180;
+let ori = null, tiltSeen = false, permAsked = false;
+const NEED_PERM = typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+window.addEventListener('deviceorientation', e => { if (e.beta == null || e.gamma == null) return; ori = { b: +e.beta, g: +e.gamma }; tiltSeen = true; });
+function screenAngle() {
+  const so = window.screen && window.screen.orientation, a = so && typeof so.angle === 'number' ? so.angle : typeof window.orientation === 'number' ? window.orientation : 0;
+  return ((a % 360) + 360) % 360;
+}
+// How far the phone is turned, in degrees (right is positive), from where "up" is in the plane of the screen.
+// It works held upright like a wheel, tilted back, or lying flat, in portrait or landscape.
+function tiltAngle() {
+  if (!ori) return 0;
+  const b = ori.b * D2R, g = ori.g * D2R, a = screenAngle() * D2R;
+  const ux = -Math.cos(b) * Math.sin(g), uy = Math.sin(b);                                  // "up" in the phone's own axes
+  const xs = ux * Math.cos(a) - uy * Math.sin(a), ys = ux * Math.sin(a) + uy * Math.cos(a);  // ... and in the screen's
+  const upright = Math.atan2(-xs, ys), flat = Math.asin(clamp(-xs, -1, 1)), k = clamp((ys - .2) / .4, 0, 1);
+  return (k * upright + (1 - k) * flat) / D2R;
+}
+let steer = 0, touchSteer = 0, padL = false, padR = false, lastSent = 0, lastSentT = 0, driveT = 0;
+const useTilt = () => OPT.mode === 'tilt' && tiltSeen;
+function readSteer(dt) {
+  let raw;
+  if (useTilt()) {
+    let a = tiltAngle() - OPT.center;
+    if (a > 180) a -= 360; else if (a < -180) a += 360;
+    if (OPT.flip) a = -a;
+    const dz = 1.5, full = SENS[OPT.sens];
+    raw = Math.abs(a) < dz ? 0 : clamp((a - Math.sign(a) * dz) / (full - dz), -1, 1);
+  } else {
+    const want = (padR ? 1 : 0) - (padL ? 1 : 0);
+    touchSteer += clamp(want - touchSteer, -6 * dt, 6 * dt);
+    raw = touchSteer;
+  }
+  steer += (raw - steer) * Math.min(1, dt * 14);
+  if (Math.abs(steer) < .002) steer = 0;
+  return steer;
+}
+const pads = { padL: new Set(), padR: new Set() };
+for (const id of ['padL', 'padR']) {
+  const el = $(id);
+  const upd = () => { padL = pads.padL.size > 0; padR = pads.padR.size > 0; el.classList.toggle('on', pads[id].size > 0); };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); pads[id].add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } upd(); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, e => { pads[id].delete(e.pointerId); upd(); });
+}
+$('tilt').addEventListener('click', () => {
+  permAsked = true;
+  try {
+    DeviceOrientationEvent.requestPermission().then(r => { if (r !== 'granted') { OPT.mode = 'touch'; saveOpt(); } renderControls(); }).catch(() => { OPT.mode = 'touch'; saveOpt(); renderControls(); });
+  } catch (e) { OPT.mode = 'touch'; saveOpt(); renderControls(); }
+});
+
+// ---------- drive screen ----------
+let shown = '';
+function setBtn(el, spec) {
+  el.hidden = !spec;
+  if (spec) { el.textContent = spec[0]; el.dataset.c = spec[1]; el.className = spec[2] || ''; }
+}
+function renderGame() {
+  const s = gameSt || { m: 'ready' }, res = s.res || {};
+  $('who').textContent = cleanName(s.n || NAME);
+  $('spd').textContent = s.sp | 0;
+  $('dst').textContent = ((s.d || 0) / 1000).toFixed(2);
+  const hearts = ['count', 'race', 'paused'].indexOf(s.m) >= 0 ? '\u2665'.repeat(clamp(s.l | 0, 0, 3)) : '';
+  $('lives').textContent = hearts ? ' \u00b7 ' + hearts : '';
+  let main = null, second = null, note = '', big = false;
+  if (s.m === 'count') { note = s.c > 0 ? String(s.c) : 'GO!'; big = true; second = ['PAUSE', 'pause']; }
+  else if (s.m === 'race') { note = 'SPEED ' + (s.lv | 0); second = ['PAUSE', 'pause']; }
+  else if (s.m === 'paused') { note = s.why === 'PHONE LOST' ? 'THE SCREEN LOST YOUR PHONE FOR A MOMENT' : 'PAUSED'; main = ['RESUME', 'resume', 'go']; second = ['QUIT', 'quit', 'warn']; }
+  else if (s.m === 'over') {
+    note = 'CRASHED OUT! ' + km(s.d) + ' - ' + (res.first ? 'YOUR FIRST RACE IS ON THE BOARD' : res.pb ? 'NEW PERSONAL BEST!' : 'BEST ' + km(s.best)) + (res.rank ? ' - #' + res.rank + ' OF ' + res.of : '');
+    main = ['RACE AGAIN', 'start', 'go'];
+  } else { note = s.best ? 'YOUR BEST: ' + km(s.best) + '. TILT TO TRY THE STEERING.' : 'TILT THE PHONE TO TRY THE STEERING'; main = ['START', 'start', 'go']; }
+  const key = s.m + note + (main || '') + (second || '');
+  if (key !== shown) {
+    shown = key;
+    setBtn($('main'), main); setBtn($('second'), second);
+    $('note').textContent = note; $('note').className = big ? 'big' : '';
+  }
+}
+for (const id of ['main', 'second']) $(id).addEventListener('click', () => {
+  const c = $(id).dataset.c;
+  if (c === 'start' && !standalone() && !IOS) { try { const d = document.documentElement; if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(() => {}); } catch (e) { /* not supported */ } }
+  cmd(c);
+});
+let ctlKey = '';
+function renderControls() {
+  const tilt = OPT.mode === 'tilt' && (tiltSeen || NEED_PERM && !permAsked || driveT < 2), ask = OPT.mode === 'tilt' && NEED_PERM && !tiltSeen && !permAsked;
+  const info = OPT.mode === 'tilt' && !tiltSeen && driveT >= 2 && !ask ? 'No tilt sensor found, so you steer by touching the left and right side of the screen.' : '';
+  const key = tilt + '|' + ask + '|' + info;
+  if (key === ctlKey) return;
+  ctlKey = key;
+  $('drive').classList.toggle('touch', !tilt);
+  $('tilt').hidden = !ask;
+  $('tiltInfo').textContent = info;
+}
+let lastW = null;
+function drawWheel(s) {
+  const r = Math.round(s * 90);
+  if (r === lastW) return;
+  lastW = r;
+  $('wheelG').setAttribute('transform', 'rotate(' + r + ')');
+  $('meterI').style.left = (50 + s * 50) + '%';
+}
+function linkStatus() {
+  const now = performance.now(), d = $('dot');
+  let cls = 'bad', via = 'NO SIGNAL';
+  if (wire && accepted && now - lastGame < 1500) {
+    const direct = wire.direct, rt = gameSt && gameSt.rt;
+    cls = direct || (rt && rt < 150) ? 'ok' : 'slow';
+    via = (direct ? 'DIRECT' : 'VIA RELAY') + (rt ? ' ' + rt + ' MS' : '');
+  }
+  if (d.className !== cls) d.className = cls;
+  if ($('via').textContent !== via) $('via').textContent = via;
+  if (cur === 'link' && wire) {
+    const n = wire.online(), t = wire.relays.length;
+    $('linkInfo').textContent = (n ? n + ' OF ' + t + ' RELAYS ONLINE' : 'CONNECTING TO THE RELAYS...') + (DEBUG ? ' ' + ID : '');
+  }
+}
+
+// ---------- settings sheet ----------
+function saveOpt() { store.set('wheel.mode', OPT.mode); store.set('wheel.sens', OPT.sens); store.set('wheel.flip', OPT.flip ? '1' : '0'); store.set('wheel.center', String(OPT.center)); renderOpt(); }
+function renderOpt() {
+  for (const seg of document.querySelectorAll('.seg[data-opt]')) {
+    const v = seg.dataset.opt === 'flip' ? (OPT.flip ? '1' : '0') : OPT[seg.dataset.opt];
+    for (const b of seg.children) b.classList.toggle('sel', b.dataset.v === v);
+  }
+}
+for (const seg of document.querySelectorAll('.seg[data-opt]')) seg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const k = seg.dataset.opt;
+  if (k === 'flip') OPT.flip = b.dataset.v === '1'; else OPT[k] = b.dataset.v;
+  saveOpt(); renderControls();
+});
+$('center').addEventListener('click', () => { OPT.center = Math.round(tiltAngle() * 10) / 10; saveOpt(); buzz(20); });
+$('uncenter').addEventListener('click', () => { OPT.center = 0; saveOpt(); buzz(20); });
+$('gear').addEventListener('click', () => { renderOpt(); renderControls(); $('sheet').hidden = false; });
+$('close').addEventListener('click', () => { $('sheet').hidden = true; });
+$('leave').addEventListener('click', () => { $('sheet').hidden = true; disconnect(); show('setup'); renderCode(); });
+
+// ---------- main loop: 25 times a second ----------
+let lastTick = performance.now();
+setInterval(() => {
+  const now = performance.now(), dt = Math.min(.1, (now - lastTick) / 1000);
+  lastTick = now;
+  const s = readSteer(dt);
+  if (cur === 'drive') { driveT += dt; drawWheel(s); renderControls(); } else driveT = 0;
+  if (wire) {
+    if (!accepted) { if (now - helloT > 1000) { helloT = now; hello(); } }
+    else {
+      if (now - lastGame > 3500) lost('NO ANSWER FROM THE SCREEN');
+      const r = Math.round(s * 1000) / 1000;
+      if (Math.abs(r - lastSent) > .008 || now - lastSentT > 150) { wire.send({ t: 's', a: r }, 'fast'); lastSent = r; lastSentT = now; }
+      if (P2P && !wire.direct && !wire.pc && rtcTries < 3 && now > rtcAt) { rtcTries++; rtcAt = now + 20000; wire.call(); }
+    }
+  }
+  linkStatus();
+}, 40);
+
+// ---------- start ----------
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+renderCode(); renderOpt();
+if (NAME.length >= 2 && codeBuf.length === 4) connect(codeBuf);
+else { show('setup'); if (!NAME) setTimeout(() => { try { $('name').focus(); } catch (e) { /* ignore */ } }, 300); }
+window.WHEEL = {
+  state: () => ({ screen: cur, accepted, room, steer, direct: !!(wire && wire.direct), relays: wire ? wire.online() : 0, game: gameSt && gameSt.m, tilt: tiltSeen, angle: tiltAngle() }),
+  tiltAngle, setOri: (b, g) => { ori = { b, g }; tiltSeen = true; },
+};
+})();
+</script>
+</body>
+</html>
