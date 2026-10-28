@@ -1,6 +1,6 @@
 # RUSH HOUR
 
-A racing game that runs on the POS screen and that you steer with your phone. Tilt the phone like a steering wheel, weave through the traffic, and hang on: the car speeds up every 20 seconds until you have crashed three times.
+A racing game that runs on the POS screen and that you steer with your phone. Hold the phone sideways like a steering wheel and tilt it to weave through the traffic, and hang on: the car speeds up every 20 seconds until you have crashed three times.
 
 Play it at **https://kkinnit-o8.github.io/Barcode-game/rush-hour/**, or open the [Scanner Games](../README.md) home page and scan its card. The steering wheel is the [Phone Wheel](../wheel/README.md) app at **https://kkinnit-o8.github.io/Barcode-game/wheel/**.
 
@@ -11,7 +11,7 @@ Like the other games it is a single `index.html` with no libraries or fonts. Unl
 1. Open RUSH HOUR on the POS screen. It shows **WAITING FOR A PHONE**, a 4-digit code and a QR code.
 2. On your phone, open the Scanner Games site and tap **PHONE WHEEL** in the bottom corner, or scan the QR code with the phone camera.
 3. Type your name and the code. The screen says hi when the phone is connected.
-4. Hold the phone like a steering wheel and tilt it to steer. You can try the steering before the race starts.
+4. Hold the phone sideways (landscape) like a steering wheel and tilt it to steer. You can try the steering before the race starts. Held upright, the phone doesn't steer, and the screen tells you to turn it sideways.
 5. Tap **START** on the phone. After 3, 2, 1 you're off.
 6. Overtake the traffic and stay on the road. The grass slows you down, and lamp posts, trees, signs and billboards stop you dead.
 7. A crash costs one of your 3 cars. After a crash you get a clear road and two seconds where nothing can hit you.

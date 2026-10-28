@@ -14,8 +14,10 @@ It is a web app (PWA), so you can keep it on the home screen and open it like an
 ## Using it
 
 1. Type your name (2 to 10 letters) and the 4-digit code shown on the POS screen. Scanning the QR code on the screen with the phone camera fills in the code for you.
-2. When the screen answers, the wheel appears. Tilt the phone to steer: hold it upright like a steering wheel, tilted back or flat, in portrait or landscape.
+2. When the screen answers, the wheel appears. Hold the phone sideways (landscape) like a steering wheel and tilt it to steer. Either way round works, and so does tilting it back or holding it flat. Held upright in portrait, it doesn't steer and asks you to turn it sideways.
 3. Use the big button for **START**, **PAUSE**, **RESUME** and **RACE AGAIN**.
+
+The wheel goes by how you hold the phone, not by how its screen is rotated, so it also works with auto-rotate turned off. If the page stays in portrait, the wheel turns its own screen to match. In the installed app, and in fullscreen on Android, it asks the phone to lock the screen in landscape.
 
 On an iPhone, tap **TAP TO TURN ON TILT STEERING** and allow motion access the first time. The wheel keeps the screen on while you play, and on Android the phone buzzes when you crash.
 

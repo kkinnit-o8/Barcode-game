@@ -18,7 +18,7 @@ Built for a SuSoft POS terminal (Android 7.1.2, Chrome 119), but it works with a
 | [STOCK DEFENSE](stock-defense/README.md) | `stock-defense/` | Bloons-style tower defense. Groceries ride the conveyor belt to the exit; scan pads to build and upgrade scanners that scan them first. |
 | [RUSH HOUR](rush-hour/README.md) | `rush-hour/` | Racing game on the POS screen that you steer by tilting your phone. It gets faster every 20 seconds. |
 
-RUSH HOUR is steered with the [Phone Wheel](wheel/README.md) (`wheel/`), a web app you can install on your phone. Open it from **PHONE WHEEL** in the bottom corner of the home page, type the code shown on the POS screen, and tilt.
+RUSH HOUR is steered with the [Phone Wheel](wheel/README.md) (`wheel/`), a web app you can install on your phone. Open it from **PHONE WHEEL** in the bottom corner of the home page, type the code shown on the POS screen, then hold the phone sideways and tilt it.
 
 On the home page, scan a game's **SCAN TO PLAY** barcode or tap its card to start it. Each game has an **ALL GAMES** barcode on its title screen that goes back to the home page (Esc works too).
 

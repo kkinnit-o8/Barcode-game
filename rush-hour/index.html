@@ -716,7 +716,7 @@ function onPhone(o, via) {
   if (!phone || o.id !== phone.id || !fresh(phone, o.q)) return;
   phone.seen = now;
   if (phone.lost && o.t !== 'bye') { phone.lost = false; msg(phone.name + "'S PHONE IS BACK", '#60ff70'); }
-  if (o.t === 's') { if (o.q > phone.sq) { phone.sq = o.q; phone.steer = clamp(+o.a || 0, -1, 1); } }
+  if (o.t === 's') { if (o.q > phone.sq) { phone.sq = o.q; phone.steer = clamp(+o.a || 0, -1, 1); phone.upright = !!o.h; } }
   else if (o.t === 'c') phoneCmd(o.c);
   else if (o.t === 'rtc') wire.signal(o.d);
   else if (o.t === 'po' && typeof o.k === 'number') phone.rtt = Math.round(now - o.k);
@@ -1114,6 +1114,7 @@ function drawWait() {
   vctx.fillStyle = '#ffd040'; vctx.fillRect(40, cy - 5, 4 * 36 + 8, 1); vctx.fillRect(40, cy + 46, 4 * 36 + 8, 1);
   txt(vctx, ROOM, 48, cy + 2, 6, 'grad:#ffffff,#ffe070', 'left', null);
   ly = cy + 54;
+  txt(vctx, '4. HOLD IT SIDEWAYS LIKE A STEERING WHEEL', 24, ly, 1, '#ffffff'); ly += 13;
   const n = wire ? wire.online() : 0, total = wire ? wire.relays.length : 0;
   if (n) txt(vctx, 'ONLINE: ' + n + ' OF ' + total + ' RELAYS', 24, ly, 1, '#80c890');
   else txt(vctx, G.t > 10 ? 'NO RELAY REACHABLE - CHECK THE INTERNET' : 'CONNECTING TO THE RELAYS...', 24, ly, 1, G.t > 10 ? '#ff7060' : '#c8c0b0');
@@ -1131,8 +1132,10 @@ function drawReady() {
   y += 2;
   const hi = 'HI ' + name + '!';
   txt(vctx, hi, W / 2, y, fitSc(hi, 3, W - 20), '#ffffff', 'center'); y += 26;
-  txt(vctx, 'HOLD YOUR PHONE LIKE A STEERING WHEEL', W / 2, y, 1, '#f0e8d8', 'center'); y += 10;
-  txt(vctx, 'AND TILT IT TO STEER. TRY IT NOW!', W / 2, y, 1, '#f0e8d8', 'center'); y += 14;
+  txt(vctx, 'HOLD YOUR PHONE SIDEWAYS LIKE A STEERING WHEEL', W / 2, y, 1, '#f0e8d8', 'center'); y += 10;
+  if (phone && phone.upright) { if (((G.t * 3) | 0) % 3) txt(vctx, 'TURN YOUR PHONE SIDEWAYS!', W / 2, y, 1, '#ffd040', 'center'); }
+  else txt(vctx, 'AND TILT IT TO STEER. TRY IT NOW!', W / 2, y, 1, '#f0e8d8', 'center');
+  y += 14;
   if (((G.t * 2) | 0) % 2 === 0) txt(vctx, 'TAP START ON YOUR PHONE', W / 2, y, 2, '#60ff70', 'center');
   y += 20;
   const b = bestOf(name), rows = boardRows('all'), rank = rows.findIndex(r => r.n === name) + 1;
@@ -1171,6 +1174,7 @@ function drawHud() {
   if (lt) txt(vctx, lt, 4, H - 10, 1, phone && phone.lost ? '#ff6060' : '#a8a0b8');
   const m = G.mode !== 'paused' && G.msgs.length ? G.msgs[G.msgs.length - 1] : null;
   if (m) txt(vctx, m.text, W / 2, 42, fitSc(m.text, 2, W - 20), m.col, 'center');
+  if (!m && G.mode === 'race' && phone && phone.upright && ((G.t * 3) | 0) % 3) txt(vctx, 'HOLD THE PHONE SIDEWAYS!', W / 2, 42, 2, '#ffd040', 'center');
 }
 function drawCount() {
   drawHud();
